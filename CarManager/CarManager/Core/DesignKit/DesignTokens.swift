@@ -85,6 +85,18 @@ extension DS {
 
 extension DS {
     enum Text {
+        /// Inter Bold 32 / 40, tracking −0.8 — paywall hero title.
+        static let hero = Font.system(size: 32, weight: .bold)
+        static let heroTracking: CGFloat = -0.8
+        /// Inter Bold 20 / 30 — plan price.
+        static let price = Font.system(size: 20, weight: .bold)
+        /// Inter Regular 11 / 16.5 — plan name.
+        static let planName = Font.system(size: 11)
+        /// Inter Medium 13 / 19.5 — benefit row.
+        static let benefit = Font.system(size: 13, weight: .medium)
+        /// Inter Bold 9 / 13.5 — "BEST" flag.
+        static let flag = Font.system(size: 9, weight: .bold)
+
         /// Inter Bold 30 / 37.5, tracking −0.75 — screen title.
         static let title = Font.system(size: 30, weight: .bold)
         static let titleTracking: CGFloat = -0.75

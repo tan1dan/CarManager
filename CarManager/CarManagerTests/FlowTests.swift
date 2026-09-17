@@ -681,3 +681,116 @@ struct SettingsScreenTests {
         #expect(RouteGuard().evaluate(.modal(.shareExport(url)), context: .make()) == .allow)
     }
 }
+
+@Suite("Paywall")
+@MainActor
+struct PaywallTests {
+    private let formatter = PaywallFormatter()
+
+    private func products(eligible: Bool = true) -> [SubscriptionProduct] {
+        [
+            SubscriptionProduct(
+                id: .monthly, displayName: "Premium Monthly", displayPrice: "€4.99",
+                isEligibleForIntroOffer: eligible,
+                introOfferDescription: eligible ? "7-day free trial" : nil
+            ),
+            SubscriptionProduct(
+                id: .yearly, displayName: "Premium Yearly", displayPrice: "€39.00",
+                isEligibleForIntroOffer: eligible,
+                introOfferDescription: eligible ? "7-day free trial" : nil
+            )
+        ]
+    }
+
+    @Test("Both plans are offered, with the yearly one promoted")
+    func plansAndPromotion() {
+        let model = formatter.makeModel(products: products(), selected: .yearly)
+
+        #expect(model.plans.map(\.id) == [.monthly, .yearly])
+        #expect(model.plans.first { $0.id == .yearly }?.isPromoted == true)
+        #expect(model.plans.first { $0.id == .monthly }?.isPromoted == false)
+    }
+
+    @Test("Prices come from StoreKit's localised strings, never hard-coded")
+    func pricesComeFromStoreKit() {
+        let model = formatter.makeModel(products: products(), selected: .yearly)
+
+        #expect(model.plans.first { $0.id == .monthly }?.price == "€4.99")
+        #expect(model.plans.first { $0.id == .yearly }?.price == "€39.00")
+    }
+
+    @Test("A trial is only promised when the account is eligible")
+    func trialOnlyWhenEligible() {
+        let eligible = formatter.makeModel(products: products(eligible: true), selected: .yearly)
+        #expect(eligible.callToAction == "Start 7-day free trial")
+
+        let notEligible = formatter.makeModel(products: products(eligible: false), selected: .yearly)
+        #expect(notEligible.callToAction == "Subscribe")
+    }
+
+    @Test("The benefit list matches what the gating matrix actually unlocks")
+    func benefitsMatchGating() {
+        // iCloud sync is free in this app, so the paywall must not claim it.
+        #expect(!PaywallFormatter.benefits.contains { $0.localizedCaseInsensitiveContains("icloud") })
+        #expect(PaywallFormatter.benefits.contains("Unlimited vehicles"))
+        #expect(PaywallFormatter.benefits.contains("PDF export of history"))
+    }
+
+    @Test("Selecting a plan changes the call to action target")
+    func selectionDrivesModel() async {
+        let clock = FixedClock()
+        let store = EntitlementStore(
+            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+        )
+        let viewModel = PaywallViewModel(
+            context: .settingsUpgrade, entitlements: store,
+            router: makeRouter(context: .make())
+        )
+        await viewModel.load()
+
+        #expect(viewModel.selectedProduct == .yearly)
+        viewModel.select(.monthly)
+        #expect(viewModel.selectedProduct == .monthly)
+    }
+
+    @Test("Restoring with nothing to restore reports it without an error")
+    func restoreNothingIsNeutral() async {
+        let clock = FixedClock()
+        let store = EntitlementStore(
+            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+        )
+        let viewModel = PaywallViewModel(
+            context: .settingsUpgrade, entitlements: store,
+            router: makeRouter(context: .make())
+        )
+
+        await viewModel.restore()
+        #expect(viewModel.message == "Nothing to restore")
+    }
+
+    @Test("A successful purchase dismisses the paywall and replays the blocked destination")
+    func purchaseReplaysDestination() async {
+        let clock = FixedClock()
+        let store = EntitlementStore(
+            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+        )
+        // The router must read LIVE entitlement state: replaying a destination re-runs the
+        // guard, so a stale snapshot would block the very screen the purchase unlocked.
+        let router = AppRouter { [store] in
+            .make(entitlement: store.entitlement, hasVehicle: true)
+        }
+        // What RouteGuard does when a free user reaches a premium screen.
+        router.navigate(to: .fullScreen(.camera(.receipt)))
+        #expect(router.pendingDestination != nil)
+
+        let viewModel = PaywallViewModel(
+            context: .feature(.receiptScan), entitlements: store, router: router
+        )
+        await viewModel.load()
+        await viewModel.purchaseSelected()
+
+        #expect(store.isPremium)
+        #expect(router.pendingDestination == nil)
+        #expect(router.fullScreen == .camera(.receipt))
+    }
+}

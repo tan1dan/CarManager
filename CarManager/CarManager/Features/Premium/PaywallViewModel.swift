@@ -4,28 +4,40 @@ import Observation
 @MainActor
 @Observable
 final class PaywallViewModel {
-    private(set) var products: [SubscriptionProduct] = []
+    private(set) var presentation: PaywallPresentationModel = .placeholder
+    private(set) var selectedProduct: ProductID = ProductCatalogIDs.promoted
+    private(set) var isPurchasing = false
     private(set) var message: String?
-    private(set) var state: ViewState<Bool> = .idle
 
+    private let context: PaywallContext
     private let entitlements: EntitlementStore
     private let router: AppRouter
+    private let formatter = PaywallFormatter()
 
-    init(entitlements: EntitlementStore, router: AppRouter) {
+    init(context: PaywallContext, entitlements: EntitlementStore, router: AppRouter) {
+        self.context = context
         self.entitlements = entitlements
         self.router = router
     }
 
     func load() async {
-        state = .loading
         await entitlements.loadProducts()
-        products = entitlements.products
-        state = .loaded(true)
+        rebuild()
     }
 
-    func purchase(_ productID: ProductID) async {
+    func select(_ productID: ProductID) {
+        selectedProduct = productID
+        rebuild()
+    }
+
+    func purchaseSelected() async {
+        guard !isPurchasing else { return }
+        isPurchasing = true
+        message = nil
+        defer { isPurchasing = false }
+
         do {
-            switch try await entitlements.purchase(productID) {
+            switch try await entitlements.purchase(selectedProduct) {
             case .success:
                 router.dismissModal()
                 // Land on the screen that triggered the paywall, not back at Home.
@@ -37,11 +49,12 @@ final class PaywallViewModel {
                 break
             }
         } catch {
-            state = .failed(ErrorPresenter.present(error))
+            message = ErrorPresenter.present(error).messageKey
         }
     }
 
     func restore() async {
+        message = nil
         do {
             switch try await entitlements.restore() {
             case .restored:
@@ -52,7 +65,13 @@ final class PaywallViewModel {
                 message = "Nothing to restore"
             }
         } catch {
-            state = .failed(ErrorPresenter.present(error))
+            message = ErrorPresenter.present(error).messageKey
         }
+    }
+
+    private func rebuild() {
+        presentation = formatter.makeModel(
+            products: entitlements.products, selected: selectedProduct
+        )
     }
 }

@@ -134,6 +134,10 @@ public final class AppRouter {
     }
 
     /// Called after sign-in, purchase or disclaimer acknowledgement.
+    ///
+    /// This deliberately re-runs the guard: entitlement or auth may still not permit the
+    /// destination. That requires `contextProvider` to read live state — a snapshot captured
+    /// at construction would re-block the screen the purchase just unlocked.
     @discardableResult
     public func replayPendingDestination() -> Bool {
         guard let destination = pendingDestination else { return false }

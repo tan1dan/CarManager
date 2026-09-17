@@ -18,11 +18,11 @@ public actor StubSubscriptionProvider: SubscriptionProviding {
         [
             SubscriptionProduct(
                 id: .monthly, displayName: "Premium Monthly", displayPrice: "€4.99",
-                isEligibleForIntroOffer: true, introOfferDescription: "7 days free"
+                isEligibleForIntroOffer: true, introOfferDescription: "7-day free trial"
             ),
             SubscriptionProduct(
                 id: .yearly, displayName: "Premium Yearly", displayPrice: "€39.00",
-                isEligibleForIntroOffer: true, introOfferDescription: "7 days free"
+                isEligibleForIntroOffer: true, introOfferDescription: "7-day free trial"
             )
         ]
     }
