@@ -94,6 +94,20 @@ public struct MarkNotificationRead: Sendable {
     }
 }
 
+// MARK: - Export
+
+/// Premium-gated at the call site. Renders off the main actor via the `DocumentExporting` port
+/// and returns a temporary URL for the share sheet.
+public struct ExportVehicleHistoryPDF: Sendable {
+    let exporter: any DocumentExporting
+
+    public init(exporter: any DocumentExporting) { self.exporter = exporter }
+
+    public func callAsFunction(vehicleID: VehicleID, period: AnalyticsPeriod) async throws -> URL {
+        try await exporter.exportPDF(vehicleID: vehicleID, period: period)
+    }
+}
+
 // MARK: - User statistics
 
 /// The counts shown on Profile. `VehicleSummary` already carries the per-vehicle totals, so

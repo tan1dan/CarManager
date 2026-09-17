@@ -127,6 +127,8 @@ public enum ModalRoute: Hashable, Codable, Sendable, Identifiable {
     case paywall(PaywallContext)
     case receiptReview(ReceiptScanID)
     case legal(LegalDocument)
+    /// Hands a generated file to the system share sheet.
+    case shareExport(URL)
     case forgotPassword
     case disclaimerAcknowledgement(DisclaimerKind)
 

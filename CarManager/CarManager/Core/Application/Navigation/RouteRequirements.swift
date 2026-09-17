@@ -51,6 +51,9 @@ public extension ModalRoute {
         case .quickLog, .vehiclePicker, .paywall, .legal, .forgotPassword,
              .disclaimerAcknowledgement, .vehicleEditor:
             .none
+        // Gating happens before the file is produced, so presenting it needs nothing.
+        case .shareExport:
+            .none
         case .fuelEditor, .serviceEditor, .expenseEditor, .reminderEditor, .documentEditor:
             RouteRequirements(requiresVehicle: true)
         case .receiptReview:

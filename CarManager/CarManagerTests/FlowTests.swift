@@ -565,3 +565,119 @@ struct ProfileTests {
         #expect(statistics.serviceRecordCount == 0)
     }
 }
+
+@Suite("Settings")
+@MainActor
+struct SettingsScreenTests {
+    private let clock = FixedClock()
+
+    private var formatter: SettingsFormatter {
+        SettingsFormatter(
+            locale: Locale(identifier: "en_SE"),
+            timeZone: TimeZone(identifier: "Europe/Stockholm")!,
+            appVersion: "1.0.0"
+        )
+    }
+
+    private func model(auth: AuthState = .anonymous, units: UnitSystem = .metric) -> SettingsPresentationModel {
+        formatter.makeModel(authState: auth, unitSystem: units, telemetryEnabled: false)
+    }
+
+    @Test("The four designed sections are present in order")
+    func sectionOrder() {
+        #expect(model().sections.map(\.title) == ["ACCOUNT", "PREFERENCES", "DATA", "ABOUT"])
+    }
+
+    @Test("Every designed row is present", arguments: [
+        "email", "password", "payment", "units", "region", "timezone",
+        "notifications", "icloud", "export", "telemetry", "version", "support"
+    ])
+    func rowsPresent(_ id: String) {
+        let ids = model().sections.flatMap(\.rows).map(\.id)
+        #expect(ids.contains(id))
+    }
+
+    @Test("Payment method links out to App Store billing and never shows card data")
+    func paymentMethodNeverShowsCard() {
+        let row = model().sections
+            .flatMap(\.rows)
+            .first { $0.id == "payment" }
+
+        #expect(row?.action == .openURL(SettingsFormatter.appStoreBillingURL))
+        // The design shows "Visa ·· 4832"; the app holds no card data, so the row must not
+        // render a value at all.
+        #expect(row?.trailing == .chevron)
+    }
+
+    @Test("The email row reflects the session")
+    func emailReflectsSession() {
+        #expect(
+            model().sections.flatMap(\.rows).first { $0.id == "email" }?.trailing
+                == .value("Not signed in")
+        )
+
+        let signedIn = model(auth: .authenticated(UserProfile(
+            email: "alex@carassistant.app", authProvider: .email, createdAt: clock.now
+        )))
+        #expect(
+            signedIn.sections.flatMap(\.rows).first { $0.id == "email" }?.trailing
+                == .value("alex@…")
+        )
+    }
+
+    @Test("Units reflects the stored preference", arguments: [
+        (UnitSystem.metric, "Metric"), (.imperial, "Imperial")
+    ])
+    func unitsReflectPreference(_ input: (system: UnitSystem, label: String)) {
+        let row = model(units: input.system).sections.flatMap(\.rows).first { $0.id == "units" }
+        #expect(row?.trailing == .value(input.label))
+    }
+
+    @Test("Region and time zone are read from the device, not stored by the app")
+    func localeValuesAreRead() {
+        let rows = model().sections.flatMap(\.rows)
+        #expect(rows.first { $0.id == "region" }?.trailing == .value("Sweden"))
+        #expect(rows.first { $0.id == "timezone" }?.action == SettingsPresentationModel.Action.inert)
+    }
+
+    @Test("The three boolean preferences are switches", arguments: [
+        ("notifications", SettingsPresentationModel.ToggleKind.notifications),
+        ("icloud", .iCloudSync),
+        ("telemetry", .telemetry)
+    ])
+    func togglesAreSwitches(_ input: (id: String, kind: SettingsPresentationModel.ToggleKind)) {
+        let row = model().sections.flatMap(\.rows).first { $0.id == input.id }
+        #expect(row?.trailing == .toggle(input.kind))
+    }
+
+    @Test("PDF export is its own action so it can be premium-gated before a file is produced")
+    func exportIsGatedAction() {
+        let row = model().sections.flatMap(\.rows).first { $0.id == "export" }
+        #expect(row?.action == .exportPDF)
+        #expect(FeatureGating.evaluate(
+            .pdfExport, entitlement: .free, usage: .available(now: clock.now),
+            vehicleCount: 1, now: clock.now
+        ) == .locked(.requiresPremium))
+    }
+
+    @Test("Every pushed Settings destination is reachable through the guard")
+    func pushedRowsAreReachable() {
+        let routes = model().sections.flatMap(\.rows).compactMap { row -> AppRoute? in
+            if case .push(let route) = row.action { return route }
+            return nil
+        }
+        #expect(!routes.isEmpty)
+        for route in routes {
+            #expect(
+                RouteGuard().evaluate(.tab(.profile, path: [route]), context: .make()) == .allow,
+                "\(route) should be reachable"
+            )
+        }
+    }
+
+    @Test("The share-export sheet needs no entitlement of its own")
+    func shareExportIsUngated() {
+        let url = URL(fileURLWithPath: "/tmp/export.pdf")
+        #expect(RouteGuard().evaluate(.modal(.shareExport(url)), context: .make()) == .allow)
+    }
+}

@@ -175,14 +175,18 @@ struct ProfileView: View {
     private var settingsList: some View {
         VStack(spacing: 0) {
             ForEach(Array(presentation.rows.enumerated()), id: \.element.id) { index, row in
-                ProfileRowView(row: row) {
-                    guard let destination = row.destination else { return }
-                    model?.router.push(destination, in: .profile)
+                SettingsRowView(
+                    symbolName: row.symbolName,
+                    title: row.title,
+                    action: row.destination.map { destination in
+                        { model?.router.push(destination, in: .profile) }
+                    }
+                ) {
+                    profileRowTrailing(row.trailing)
                 }
+                .accessibilityIdentifier("profileRow_\(row.id)")
                 if index < presentation.rows.count - 1 {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.051))
-                        .frame(height: DS.Layout.hairlineWidth)
+                    SettingsRowSeparator()
                 }
             }
         }
@@ -215,6 +219,26 @@ struct ProfileView: View {
         }
     }
 
+    @ViewBuilder
+    private func profileRowTrailing(_ trailing: ProfilePresentationModel.Row.Trailing) -> some View {
+        switch trailing {
+        case .chevron:
+            SettingsRowChevron()
+        case .value(let text):
+            SettingsRowValue(text: text)
+        case .darkModeToggle:
+            // The app is dark-only today; this persists the preference so the switch is not
+            // decorative, but there is no light theme for it to switch to yet.
+            Toggle("", isOn: Binding(
+                get: { model?.dependencies.preferences.appearance != .light },
+                set: { model?.dependencies.preferences.appearance = $0 ? .dark : .light }
+            ))
+            .labelsHidden()
+            .tint(DS.Colors.accent)
+            .accessibilityIdentifier("profileDarkModeToggle")
+        }
+    }
+
     // MARK: - Wiring
 
     private var presentation: ProfilePresentationModel {
@@ -236,69 +260,5 @@ struct ProfileView: View {
             )
         }
         await viewModel?.load()
-    }
-}
-
-// MARK: - Row
-
-private struct ProfileRowView: View {
-    let row: ProfilePresentationModel.Row
-    let onTap: () -> Void
-    @Environment(\.appModel) private var model
-
-    var body: some View {
-        Group {
-            if row.destination == nil {
-                content
-            } else {
-                Button(action: onTap) { content }.buttonStyle(.plain)
-            }
-        }
-        .accessibilityIdentifier("profileRow_\(row.id)")
-    }
-
-    private var content: some View {
-        HStack(spacing: 12) {
-            Image(systemName: row.symbolName)
-                .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(DS.Colors.textPrimary)
-                .frame(width: 44, height: 44)
-                .background(Circle().fill(Color.white.opacity(0.051)))
-
-            Text(row.title)
-                .font(DS.Text.rowTitle)
-                .tracking(DS.Text.defaultTracking)
-                .foregroundStyle(DS.Colors.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            trailing
-        }
-        .padding(14)
-        .contentShape(.rect)
-    }
-
-    @ViewBuilder
-    private var trailing: some View {
-        switch row.trailing {
-        case .chevron:
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(DS.Colors.textSecondary)
-        case .value(let text):
-            Text(text)
-                .font(DS.Text.subheadlineRegular)
-                .tracking(DS.Text.defaultTracking)
-                .foregroundStyle(DS.Colors.onCardTertiary)
-        case .darkModeToggle:
-            // The app is dark-only today; this persists the preference so the switch is not
-            // decorative, but there is no light theme for it to switch to yet.
-            Toggle("", isOn: Binding(
-                get: { model?.dependencies.preferences.appearance != .light },
-                set: { model?.dependencies.preferences.appearance = $0 ? .dark : .light }
-            ))
-            .labelsHidden()
-            .tint(DS.Colors.accent)
-            .accessibilityIdentifier("profileDarkModeToggle")
-        }
     }
 }

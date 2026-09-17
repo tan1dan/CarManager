@@ -86,6 +86,7 @@ struct ModalRouteView: View {
         case .paywall(let context): PaywallView(context: context)
         case .receiptReview(let id): NavigationStack { ReceiptReviewView(scanID: id) }
         case .legal(let document): LegalView(document: document)
+        case .shareExport(let url): ShareExportView(url: url)
         case .forgotPassword: NavigationStack { ForgotPasswordView() }
         case .disclaimerAcknowledgement(let kind): DisclaimerAcknowledgementView(kind: kind)
         }
