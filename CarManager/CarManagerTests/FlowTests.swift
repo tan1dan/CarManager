@@ -1,0 +1,567 @@
+import Testing
+import Foundation
+@testable import CarManager
+
+@Suite("Vehicle flow")
+@MainActor
+struct VehicleFlowTests {
+    private let clock = FixedClock()
+
+    @Test("The first vehicle created becomes the default")
+    func firstVehicleBecomesDefault() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+
+        let output = try await createVehicle(
+            VehicleDraft(brand: "Audi", model: "A4", fuelType: .diesel), vehicleLimit: 1
+        )
+
+        #expect(output.becameDefault)
+        #expect(try await dependencies.vehicles.defaultVehicle()?.id == output.vehicle.id)
+    }
+
+    @Test("A second vehicle does not steal the default flag")
+    func secondVehicleIsNotDefault() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+
+        let first = try await createVehicle(
+            VehicleDraft(brand: "Audi", model: "A4", fuelType: .diesel), vehicleLimit: nil
+        )
+        let second = try await createVehicle(
+            VehicleDraft(brand: "VW", model: "Golf", fuelType: .petrol), vehicleLimit: nil
+        )
+
+        #expect(!second.becameDefault)
+        #expect(try await dependencies.vehicles.defaultVehicle()?.id == first.vehicle.id)
+    }
+
+    @Test("The free-tier limit refuses a second vehicle")
+    func freeTierVehicleLimit() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+        _ = try await createVehicle(
+            VehicleDraft(brand: "Audi", model: "A4", fuelType: .diesel), vehicleLimit: 1
+        )
+
+        await #expect(throws: DomainError.subscription(.vehicleLimitReached)) {
+            try await createVehicle(
+                VehicleDraft(brand: "VW", model: "Golf", fuelType: .petrol), vehicleLimit: 1
+            )
+        }
+    }
+
+    @Test("Creating a vehicle writes its initial odometer reading")
+    func initialOdometerReading() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+
+        let output = try await createVehicle(
+            VehicleDraft(
+                brand: "Audi", model: "A4", fuelType: .diesel,
+                initialOdometer: Odometer(kilometers: 82_540)
+            ),
+            vehicleLimit: nil
+        )
+
+        let current = try await dependencies.odometer.current(vehicleID: output.vehicle.id)
+        #expect(current?.value.kilometers == 82_540)
+    }
+
+    @Test("Standard reminders are seeded inactive, so we never spam a brand-new car")
+    func seededRemindersAreInactive() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+
+        let output = try await createVehicle(
+            VehicleDraft(brand: "Audi", model: "A4", fuelType: .diesel), vehicleLimit: nil
+        )
+
+        let all = try await dependencies.reminders.reminders(vehicleID: output.vehicle.id, activeOnly: false)
+        let active = try await dependencies.reminders.reminders(vehicleID: output.vehicle.id, activeOnly: true)
+        #expect(!all.isEmpty)
+        #expect(active.isEmpty)
+    }
+
+    @Test("Validation rejects an empty brand")
+    func validationRejectsEmptyBrand() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+
+        await #expect(throws: DomainError.validation(.emptyField(.brand))) {
+            try await createVehicle(VehicleDraft(brand: "  ", model: "A4", fuelType: .diesel), vehicleLimit: nil)
+        }
+    }
+
+    @Test("Deleting the default vehicle promotes another one")
+    func deletePromotesAnother() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let createVehicle = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+        let first = try await createVehicle(
+            VehicleDraft(brand: "Audi", model: "A4", fuelType: .diesel), vehicleLimit: nil
+        )
+        let second = try await createVehicle(
+            VehicleDraft(brand: "VW", model: "Golf", fuelType: .petrol), vehicleLimit: nil
+        )
+
+        try await DeleteVehicle(vehicles: dependencies.vehicles, files: dependencies.files)(id: first.vehicle.id)
+
+        #expect(try await dependencies.vehicles.defaultVehicle()?.id == second.vehicle.id)
+    }
+}
+
+@Suite("Receipt scan flow")
+@MainActor
+struct ReceiptScanFlowTests {
+    private let clock = FixedClock()
+
+    private func makeScanner(_ dependencies: AppDependencies) -> ScanReceipt {
+        ScanReceipt(
+            vision: dependencies.vision, textRecognizer: dependencies.textRecognizer,
+            preprocessor: dependencies.imagePreprocessor, files: dependencies.files,
+            scans: dependencies.scans, clock: clock
+        )
+    }
+
+    private func makeConfirmer(_ dependencies: AppDependencies) -> ConfirmReceiptScan {
+        ConfirmReceiptScan(
+            addFuel: AddFuelEntry(fuel: dependencies.fuel, odometer: dependencies.odometer, clock: clock),
+            addService: AddServiceRecord(
+                services: dependencies.services, odometer: dependencies.odometer,
+                reminders: dependencies.reminders, clock: clock
+            ),
+            addExpense: AddExpense(
+                expenses: dependencies.expenses, odometer: dependencies.odometer, clock: clock
+            ),
+            scans: dependencies.scans
+        )
+    }
+
+    @Test("Scanning stops at review and persists NO financial record")
+    func scanNeverPersistsFinancialRecords() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let vehicleID = VehicleID()
+
+        let scan = try await makeScanner(dependencies)(
+            imageData: Data("receipt".utf8), vehicleID: vehicleID
+        )
+
+        #expect(scan.status == .awaitingReview)
+        #expect(try await dependencies.fuel.count(vehicleID: vehicleID) == 0)
+        #expect(try await dependencies.services.count(vehicleID: vehicleID) == 0)
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).isEmpty)
+    }
+
+    @Test("ConfirmedReceipt cannot be built from an unreviewed draft")
+    func confirmedReceiptRequiresReview() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let scan = try await makeScanner(dependencies)(
+            imageData: Data("receipt".utf8), vehicleID: VehicleID()
+        )
+
+        // Nothing accepted yet — the type refuses to construct.
+        #expect(ConfirmedReceipt(reviewing: scan, at: clock.now) == nil)
+    }
+
+    @Test("Accepting the required fields makes confirmation possible")
+    func acceptedFieldsAllowConfirmation() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        var scan = try await makeScanner(dependencies)(
+            imageData: Data("receipt".utf8), vehicleID: VehicleID()
+        )
+        scan.draft.total.isAccepted = true
+        scan.draft.date.isAccepted = true
+
+        #expect(ConfirmedReceipt(reviewing: scan, at: clock.now) != nil)
+    }
+
+    @Test("Confirmation writes exactly one record, of exactly one kind")
+    func confirmWritesExactlyOneRecord() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let vehicleID = VehicleID()
+        var scan = try await makeScanner(dependencies)(
+            imageData: Data("receipt".utf8), vehicleID: vehicleID
+        )
+        scan.draft.total.isAccepted = true
+        scan.draft.date.isAccepted = true
+        scan.draft.suggestedRecordKind = .expense
+        try await dependencies.scans.upsert(scan)
+
+        let confirmed = try #require(ConfirmedReceipt(reviewing: scan, at: clock.now))
+        let ref = try await makeConfirmer(dependencies)(confirmed)
+
+        guard case .expense = ref else {
+            Issue.record("Expected an expense record, got \(ref)")
+            return
+        }
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).count == 1)
+        // No duplicate transaction in the other tables.
+        #expect(try await dependencies.fuel.count(vehicleID: vehicleID) == 0)
+        #expect(try await dependencies.services.count(vehicleID: vehicleID) == 0)
+    }
+
+    @Test("Confirming twice is idempotent and creates no duplicate")
+    func confirmIsIdempotent() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let vehicleID = VehicleID()
+        var scan = try await makeScanner(dependencies)(
+            imageData: Data("receipt".utf8), vehicleID: vehicleID
+        )
+        scan.draft.total.isAccepted = true
+        scan.draft.date.isAccepted = true
+        try await dependencies.scans.upsert(scan)
+
+        let confirmed = try #require(ConfirmedReceipt(reviewing: scan, at: clock.now))
+        let confirmer = makeConfirmer(dependencies)
+        let first = try await confirmer(confirmed)
+        let second = try await confirmer(confirmed)
+
+        #expect(first == second)
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).count == 1)
+    }
+
+    @Test("The created record carries its receipt-scan provenance")
+    func recordCarriesProvenance() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let vehicleID = VehicleID()
+        var scan = try await makeScanner(dependencies)(
+            imageData: Data("receipt".utf8), vehicleID: vehicleID
+        )
+        scan.draft.total.isAccepted = true
+        scan.draft.date.isAccepted = true
+        try await dependencies.scans.upsert(scan)
+
+        let confirmed = try #require(ConfirmedReceipt(reviewing: scan, at: clock.now))
+        _ = try await makeConfirmer(dependencies)(confirmed)
+
+        let expense = try #require(try await dependencies.expenses.expenses(vehicleID: vehicleID).first)
+        #expect(expense.source == .receiptScan(scan.id))
+    }
+
+    @Test("The view model reaches review and refuses to confirm until reviewed")
+    func viewModelGuardsConfirmation() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let viewModel = ReceiptScanViewModel(
+            vehicleID: VehicleID(),
+            scanReceipt: makeScanner(dependencies),
+            confirmReceiptScan: makeConfirmer(dependencies),
+            clock: clock
+        )
+
+        #expect(!viewModel.canConfirm)
+        viewModel.acceptedTotal = true
+        #expect(!viewModel.canConfirm)
+        viewModel.acceptedDate = true
+        #expect(viewModel.canConfirm)
+    }
+}
+
+@Suite("Vision scan flows")
+@MainActor
+struct VisionScanFlowTests {
+    private let clock = FixedClock()
+
+    @Test("A dashboard scan always carries a disclaimer and writes no vehicle record")
+    func dashboardScanCarriesDisclaimer() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let vehicleID = VehicleID()
+
+        let scan = try await ScanDashboard(
+            vision: dependencies.vision, preprocessor: dependencies.imagePreprocessor,
+            files: dependencies.files, scans: dependencies.scans, clock: clock
+        )(imageData: Data("dash".utf8), vehicleID: vehicleID)
+
+        #expect(scan.disclaimer.kind == .notProfessionalDiagnostics)
+        #expect(!scan.findings.isEmpty)
+        #expect(try await dependencies.services.count(vehicleID: vehicleID) == 0)
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).isEmpty)
+    }
+
+    @Test("Driving safety defaults to unknown, never to 'safe'")
+    func drivingSafetyDefaultsToUnknown() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let scan = try await ScanDashboard(
+            vision: dependencies.vision, preprocessor: dependencies.imagePreprocessor,
+            files: dependencies.files, scans: dependencies.scans, clock: clock
+        )(imageData: Data("dash".utf8), vehicleID: nil)
+
+        #expect(scan.findings.allSatisfy { $0.drivingSafety != .likelySafe })
+    }
+
+    @Test("Damage analysis returns a cost RANGE, never a guaranteed price")
+    func damageAnalysisReturnsRange() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let analysis = try await AnalyzeDamage(
+            vision: dependencies.vision, preprocessor: dependencies.imagePreprocessor,
+            files: dependencies.files, scans: dependencies.scans, clock: clock
+        )(imagesData: [Data("damage".utf8)], vehicleID: VehicleID())
+
+        #expect(analysis.disclaimer.kind == .costEstimateOnly)
+        let estimate = try #require(analysis.findings.first?.estimatedCost)
+        #expect(estimate.low.amount < estimate.high.amount)
+    }
+
+    @Test("Vision scan state moves capture → processing → result")
+    func dashboardViewModelStates() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let viewModel = DashboardScanViewModel(
+            vehicleID: VehicleID(),
+            scanDashboard: ScanDashboard(
+                vision: dependencies.vision, preprocessor: dependencies.imagePreprocessor,
+                files: dependencies.files, scans: dependencies.scans, clock: clock
+            )
+        )
+
+        if case .idle = viewModel.state {} else { Issue.record("Expected the initial state to be idle") }
+
+        viewModel.capture()
+        // Poll briefly: the stub provider resolves asynchronously.
+        for _ in 0..<50 {
+            if case .success = viewModel.state { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        guard case .success = viewModel.state else {
+            Issue.record("Expected the scan to reach a result, got \(viewModel.state)")
+            return
+        }
+    }
+}
+
+@Suite("Optional VIN")
+@MainActor
+struct OptionalVINTests {
+    private let clock = FixedClock()
+
+    private func makeCreateVehicle(_ dependencies: AppDependencies) -> CreateVehicle {
+        CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+    }
+
+    @Test("A vehicle saves with no VIN at all")
+    func savesWithoutVIN() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let output = try await makeCreateVehicle(dependencies)(
+            VehicleDraft(brand: "Audi", model: "A4", vin: nil, fuelType: .diesel),
+            vehicleLimit: nil
+        )
+
+        #expect(output.vehicle.vin == nil)
+        #expect(output.warnings.isEmpty)
+    }
+
+    @Test("Blank and whitespace-only input count as 'not entered'", arguments: ["", "   ", "\n\t"])
+    func blankVINIsAbsent(_ raw: String) async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let output = try await makeCreateVehicle(dependencies)(
+            VehicleDraft(brand: "Audi", model: "A4", vin: raw, fuelType: .diesel),
+            vehicleLimit: nil
+        )
+
+        #expect(output.vehicle.vin == nil)
+        #expect(output.warnings.isEmpty)
+    }
+
+    @Test("A malformed VIN warns but still saves — an optional field must not cancel the save")
+    func malformedVINWarnsAndSaves() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let output = try await makeCreateVehicle(dependencies)(
+            VehicleDraft(brand: "Audi", model: "A4", vin: "WAUZZ", fuelType: .diesel),
+            vehicleLimit: nil
+        )
+
+        #expect(output.vehicle.vin == "WAUZZ")
+        #expect(output.warnings == [.malformedVIN(length: 5)])
+        #expect(try await dependencies.vehicles.count() == 1)
+    }
+
+    @Test("A valid 17-character VIN is stored uppercased with no warning")
+    func validVINIsNormalised() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let output = try await makeCreateVehicle(dependencies)(
+            VehicleDraft(brand: "Audi", model: "A4", vin: " wauzzz8k9ba123456 ", fuelType: .diesel),
+            vehicleLimit: nil
+        )
+
+        #expect(output.vehicle.vin == "WAUZZZ8K9BA123456")
+        #expect(output.warnings.isEmpty)
+    }
+
+    @Test("The Garage chip shows an em dash when no VIN was entered", arguments: [nil, "", "   "])
+    func garageChipShowsDash(_ raw: String?) {
+        let summary = VehicleSummary(
+            id: VehicleID(), displayName: "Audi A4", year: 2021, fuelType: .diesel,
+            vin: raw, isDefault: true, currentOdometer: nil,
+            fuelEntryCount: 0, serviceRecordCount: 0, documentCount: 0
+        )
+        let model = GarageFormatter(unitSystem: .metric).makeModel(from: [summary])
+        let vinStat = model.primary?.stats.first { $0.caption == "VIN" }
+
+        // A nil value is what the view renders as "—".
+        #expect(vinStat?.value == nil)
+    }
+
+    @Test("The Garage chip truncates a full VIN to fit")
+    func garageChipTruncates() {
+        let summary = VehicleSummary(
+            id: VehicleID(), displayName: "Audi A4", year: 2021, fuelType: .diesel,
+            vin: "WAUZZZ8K9BA123456", isDefault: true, currentOdometer: nil,
+            fuelEntryCount: 0, serviceRecordCount: 0, documentCount: 0
+        )
+        let model = GarageFormatter(unitSystem: .metric).makeModel(from: [summary])
+
+        #expect(model.primary?.stats.first { $0.caption == "VIN" }?.value == "WAUZZ…")
+    }
+}
+
+@Suite("Profile")
+@MainActor
+struct ProfileTests {
+    private let clock = FixedClock()
+    private let formatter = ProfileFormatter(languageName: "English")
+
+    private func profile(name: String?, email: String?) -> AuthState {
+        .authenticated(UserProfile(
+            displayName: name, email: email, authProvider: .email, createdAt: FixedClock().now
+        ))
+    }
+
+    @Test("A Settings row exists and points at the Settings route")
+    func settingsRowNavigates() {
+        let model = formatter.makeModel(
+            authState: .anonymous, entitlement: .free, isPremium: false, statistics: .empty
+        )
+        let row = model.rows.first { $0.id == "settings" }
+
+        #expect(row != nil)
+        #expect(row?.destination == .settings)
+        #expect(row?.trailing == .chevron)
+    }
+
+    @Test("Every navigable Profile row is reachable through the guard")
+    func rowsAreReachable() {
+        let model = formatter.makeModel(
+            authState: .anonymous, entitlement: .free, isPremium: false, statistics: .empty
+        )
+        for route in model.rows.compactMap(\.destination) {
+            #expect(
+                RouteGuard().evaluate(.tab(.profile, path: [route]), context: .make()) == .allow,
+                "\(route) should be reachable"
+            )
+        }
+    }
+
+    @Test("The identity card shows initials, name and email when signed in")
+    func signedInIdentity() {
+        let model = formatter.makeModel(
+            authState: profile(name: "Alex Lindström", email: "alex@carassistant.app"),
+            entitlement: .premium(now: clock.now), isPremium: true, statistics: .empty
+        )
+
+        #expect(model.identity.name == "Alex Lindström")
+        #expect(model.identity.subtitle == "alex@carassistant.app")
+        #expect(model.identity.initials == "AL")
+        #expect(model.identity.isPremium)
+        #expect(model.identity.badgeTitle == "PREMIUM")
+    }
+
+    @Test("An anonymous user gets a sign-in prompt and the free badge")
+    func anonymousIdentity() {
+        let model = formatter.makeModel(
+            authState: .anonymous, entitlement: .free, isPremium: false, statistics: .empty
+        )
+
+        #expect(model.identity.name == "Not signed in")
+        #expect(!model.identity.isPremium)
+        #expect(model.identity.badgeTitle == "FREE")
+    }
+
+    @Test("Initials fall back to the email when no display name exists")
+    func initialsFromEmail() {
+        let model = formatter.makeModel(
+            authState: profile(name: nil, email: "alex@carassistant.app"),
+            entitlement: .free, isPremium: false, statistics: .empty
+        )
+
+        #expect(model.identity.name == "alex@carassistant.app")
+        #expect(model.identity.initials == "A")
+    }
+
+    @Test("The stat labels are singular for one vehicle and plural otherwise", arguments: [
+        (1, "Vehicle"), (0, "Vehicles"), (3, "Vehicles")
+    ])
+    func vehicleLabelPluralisation(_ input: (count: Int, label: String)) {
+        let model = formatter.makeModel(
+            authState: .anonymous, entitlement: .free, isPremium: false,
+            statistics: UserStatistics(
+                vehicleCount: input.count, fuelEntryCount: 0, serviceRecordCount: 0
+            )
+        )
+
+        #expect(model.stats.first?.value == "\(input.count)")
+        #expect(model.stats.first?.label == input.label)
+    }
+
+    @Test("The premium banner invites an upgrade for free users and confirms it for subscribers")
+    func premiumBannerCopy() {
+        let free = formatter.makeModel(
+            authState: .anonymous, entitlement: .free, isPremium: false, statistics: .empty
+        )
+        let premium = formatter.makeModel(
+            authState: .anonymous, entitlement: .premium(now: clock.now),
+            isPremium: true, statistics: .empty
+        )
+
+        #expect(free.premium?.eyebrow == "GO PREMIUM")
+        #expect(premium.premium?.eyebrow == "PREMIUM")
+    }
+
+    @Test("Statistics aggregate the per-vehicle counts")
+    func statisticsAggregate() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let create = CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )
+        let audi = try await create(
+            VehicleDraft(brand: "Audi", model: "A4", fuelType: .diesel), vehicleLimit: nil
+        )
+        _ = try await create(
+            VehicleDraft(brand: "VW", model: "Golf", fuelType: .petrol), vehicleLimit: nil
+        )
+        _ = try await AddFuelEntry(
+            fuel: dependencies.fuel, odometer: dependencies.odometer, clock: clock
+        )(FuelEntryDraft(
+            vehicleID: audi.vehicle.id, date: clock.now, odometer: Odometer(kilometers: 100),
+            volume: Volume(liters: 40), totalCost: Money(60, .eur), fuelType: .diesel
+        ))
+
+        let statistics = try await LoadUserStatistics(vehicles: dependencies.vehicles)()
+
+        #expect(statistics.vehicleCount == 2)
+        #expect(statistics.fuelEntryCount == 1)
+        #expect(statistics.serviceRecordCount == 0)
+    }
+}
