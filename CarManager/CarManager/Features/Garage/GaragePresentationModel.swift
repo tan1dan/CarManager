@@ -68,7 +68,7 @@ struct GarageFormatter: Sendable {
                 ),
                 .init(
                     caption: "FUEL",
-                    value: summary.fuelType.rawValue.capitalized,
+                    value: summary.fuelType.displayName,
                     unit: nil
                 ),
                 .init(caption: "VIN", value: shortVIN(summary.vin), unit: nil)
@@ -77,7 +77,7 @@ struct GarageFormatter: Sendable {
     }
 
     private func subtitle(for summary: VehicleSummary) -> String {
-        [summary.year.map(String.init), summary.fuelType.rawValue.capitalized]
+        [summary.year.map(String.init), summary.fuelType.displayName]
             .compactMap { $0 }
             .joined(separator: " · ")
     }

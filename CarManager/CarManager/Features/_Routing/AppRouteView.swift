@@ -76,7 +76,8 @@ struct ModalRouteView: View {
     var body: some View {
         switch route {
         case .quickLog: QuickLogView()
-        case .vehicleEditor(let mode): NavigationStack { VehicleEditorView(mode: mode) }
+        // Owns its NavigationStack: its pickers are popped programmatically.
+        case .vehicleEditor(let mode): VehicleEditorView(mode: mode)
         case .fuelEditor(let mode): NavigationStack { AddFuelView(mode: mode) }
         case .serviceEditor(let mode): NavigationStack { AddServiceView(mode: mode) }
         case .expenseEditor(let mode): NavigationStack { AddExpenseView(mode: mode) }

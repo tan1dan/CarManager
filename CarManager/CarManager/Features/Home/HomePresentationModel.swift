@@ -99,7 +99,7 @@ struct HomeFormatter: Sendable {
         let subtitleParts = [
             vehicle.year.map(String.init),
             vehicle.trim,
-            vehicle.fuelType.rawValue.capitalized
+            vehicle.fuelType.displayName
         ].compactMap { $0 }
 
         return .init(

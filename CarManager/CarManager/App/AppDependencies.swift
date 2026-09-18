@@ -32,6 +32,7 @@ public struct AppDependencies: Sendable {
     public var telemetry: any TelemetryProviding
     public var clock: any ClockProviding
     public var ids: any IDGenerating
+    public var vehicleCatalog: any VehicleCatalogProviding
 
     public init(
         vehicles: any VehicleRepository, odometer: any OdometerRepository,
@@ -46,7 +47,8 @@ public struct AppDependencies: Sendable {
         notifications: any NotificationScheduling, exporter: any DocumentExporting,
         preferences: any PreferencesProviding, syncStatus: any SyncStatusProviding,
         connectivity: any ConnectivityProviding, telemetry: any TelemetryProviding,
-        clock: any ClockProviding, ids: any IDGenerating
+        clock: any ClockProviding, ids: any IDGenerating,
+        vehicleCatalog: any VehicleCatalogProviding
     ) {
         self.vehicles = vehicles; self.odometer = odometer; self.fuel = fuel
         self.services = services; self.expenses = expenses; self.reminders = reminders
@@ -59,6 +61,7 @@ public struct AppDependencies: Sendable {
         self.preferences = preferences; self.syncStatus = syncStatus
         self.connectivity = connectivity; self.telemetry = telemetry
         self.clock = clock; self.ids = ids
+        self.vehicleCatalog = vehicleCatalog
     }
 }
 
@@ -97,7 +100,8 @@ public extension AppDependencies {
             connectivity: AlwaysOnlineConnectivity(),
             telemetry: ConsoleTelemetry(isEnabled: preferences.telemetryEnabled),
             clock: clock,
-            ids: UUIDGenerator()
+            ids: UUIDGenerator(),
+            vehicleCatalog: BundledVehicleCatalog()
         )
     }
 
@@ -135,7 +139,8 @@ public extension AppDependencies {
             connectivity: AlwaysOnlineConnectivity(),
             telemetry: ConsoleTelemetry(),
             clock: clock,
-            ids: UUIDGenerator()
+            ids: UUIDGenerator(),
+            vehicleCatalog: BundledVehicleCatalog()
         )
         overrides(&dependencies)
         return dependencies

@@ -88,3 +88,9 @@ public protocol TelemetryProviding: Sendable {
     func track(_ event: String, parameters: [String: String])
     func recordError(_ error: Error, context: [String: String])
 }
+
+/// Read-only reference data for the brand/model pickers. Kept on device so choosing a car
+/// works offline and never sends what the user is typing anywhere.
+public protocol VehicleCatalogProviding: Sendable {
+    func catalog() async throws -> VehicleCatalog
+}

@@ -210,3 +210,11 @@ public struct UpdateOdometer: Sendable {
         return warnings
     }
 }
+
+public struct LoadVehicleCatalog: Sendable {
+    let catalog: any VehicleCatalogProviding
+    public init(catalog: any VehicleCatalogProviding) { self.catalog = catalog }
+    public func callAsFunction() async throws -> VehicleCatalog {
+        try await catalog.catalog()
+    }
+}
