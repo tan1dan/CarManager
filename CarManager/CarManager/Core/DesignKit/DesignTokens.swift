@@ -97,6 +97,10 @@ extension DS {
         /// Inter Bold 9 / 13.5 — "BEST" flag.
         static let flag = Font.system(size: 9, weight: .bold)
 
+        /// Inter Bold 28 / 35, tracking −0.7 — AI tab hero title.
+        static let aiHero = Font.system(size: 28, weight: .bold)
+        static let aiHeroTracking: CGFloat = -0.7
+
         /// Inter Bold 30 / 37.5, tracking −0.75 — screen title.
         static let title = Font.system(size: 30, weight: .bold)
         static let titleTracking: CGFloat = -0.75

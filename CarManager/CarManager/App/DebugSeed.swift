@@ -68,6 +68,16 @@ enum DebugSeed {
             )],
             vehicleID: vehicleID
         )
+
+        let day: TimeInterval = 86_400
+        for (title, age) in [("Check engine light meaning", day), ("Best winter tires for Audi A4", 15 * day)] {
+            let date = now.addingTimeInterval(-age)
+            try? await dependencies.conversations.create(AIConversation(
+                vehicleID: vehicleID, title: title,
+                messages: [AIMessage(role: .user, text: title, createdAt: date)],
+                createdAt: date, updatedAt: date
+            ))
+        }
     }
 }
 #endif

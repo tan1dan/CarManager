@@ -794,3 +794,71 @@ struct PaywallTests {
         #expect(router.fullScreen == .camera(.receipt))
     }
 }
+
+@Suite("AI hub")
+struct AIHubTests {
+    private let clock = FixedClock()
+    private var formatter: AIHubFormatter {
+        AIHubFormatter(now: clock.now, calendar: clock.calendar, locale: Locale(identifier: "en_US"))
+    }
+
+    private func summary(_ title: String, daysAgo: Double) -> ConversationSummary {
+        ConversationSummary(
+            id: ConversationID(), title: title,
+            updatedAt: clock.now.addingTimeInterval(-daysAgo * 86_400), messageCount: 2
+        )
+    }
+
+    @Test("Chat dates read as Today, Yesterday, a short date, then a dated year")
+    func relativeDays() throws {
+        let lastYear = try #require(clock.calendar.date(byAdding: .year, value: -1, to: clock.now))
+
+        #expect(formatter.relativeDay(clock.now) == "Today")
+        #expect(formatter.relativeDay(clock.now.addingTimeInterval(-86_400)) == "Yesterday")
+        #expect(formatter.relativeDay(clock.now.addingTimeInterval(-10 * 86_400)) == "Sep 29")
+        #expect(formatter.relativeDay(lastYear).hasSuffix(", 2024"))
+    }
+
+    @Test("Recent chats are capped, and 'See all' appears only when some are hidden")
+    func recentChatsCap() {
+        let four = (0..<4).map { summary("Chat \($0)", daysAgo: Double($0)) }
+
+        let capped = formatter.makeModel(summaries: four, isLocked: { _ in false })
+        guard case .loaded(let rows) = capped.recentChats else {
+            Issue.record("expected loaded chats"); return
+        }
+        #expect(rows.map(\.title) == ["Chat 0", "Chat 1", "Chat 2"])
+        #expect(capped.showsAllChatsLink)
+
+        let fits = formatter.makeModel(summaries: Array(four.prefix(3)), isLocked: { _ in false })
+        #expect(!fits.showsAllChatsLink)
+    }
+
+    @Test("No conversations is an empty state, not an empty list")
+    func emptyState() {
+        let model = formatter.makeModel(summaries: [], isLocked: { _ in false })
+        #expect(model.recentChats == .empty)
+        #expect(!model.showsAllChatsLink)
+    }
+
+    @Test("Tool lock state mirrors the free-tier gating matrix")
+    func toolLocks() {
+        let now = clock.now
+        let model = formatter.makeModel(summaries: []) { feature in
+            !FeatureGating.evaluate(
+                feature, entitlement: .free, usage: .available(now: now),
+                vehicleCount: 1, now: now
+            ).isAllowed
+        }
+        let locked = Dictionary(uniqueKeysWithValues: model.tools.map { ($0.kind, $0.isLocked) })
+
+        // Scans are premium; chat has a free quota, so it must not look locked.
+        #expect(locked == [.dashboard: true, .receipt: true, .damage: true, .chat: false])
+    }
+
+    @Test("Every tool maps to the premium feature its destination is gated on")
+    func toolFeatures() {
+        #expect(AIHubPresentationModel.Tool.Kind.allCases.map(\.feature)
+            == [.dashboardScan, .receiptScan, .damageAnalysis, .aiChat])
+    }
+}

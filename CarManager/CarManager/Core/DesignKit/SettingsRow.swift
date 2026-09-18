@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// The list row shared by Settings and Profile (Figma: 346×73, padding 14, gap 12,
+/// The list row shared by Settings, Profile and the AI tab's recent chats (Figma: 346×73, padding 14, gap 12,
 /// 44pt icon circle filled white 5.1%, hairline separators between rows).
 struct SettingsRowView<Trailing: View>: View {
     let symbolName: String
     let title: String
+    /// Grey second line — "Yesterday" under a chat title. Settings rows have none.
+    var subtitle: String? = nil
     let action: (() -> Void)?
     @ViewBuilder var trailing: Trailing
 
@@ -24,11 +26,22 @@ struct SettingsRowView<Trailing: View>: View {
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(Color.white.opacity(0.051)))
 
-            Text(title)
-                .font(DS.Text.rowTitle)
-                .tracking(DS.Text.defaultTracking)
-                .foregroundStyle(DS.Colors.textPrimary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(title)
+                    .font(DS.Text.rowTitle)
+                    .tracking(DS.Text.defaultTracking)
+                    .foregroundStyle(DS.Colors.textPrimary)
+                    // A chat title is user-generated and can be long; a settings title is not.
+                    .lineLimit(subtitle == nil ? nil : 1)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(DS.Text.caption)
+                        .tracking(DS.Text.defaultTracking)
+                        .foregroundStyle(DS.Colors.textSecondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             trailing
         }

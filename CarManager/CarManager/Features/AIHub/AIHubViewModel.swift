@@ -4,26 +4,36 @@ import Observation
 @MainActor
 @Observable
 final class AIHubViewModel {
-    private(set) var state: ViewState<[ConversationSummary]> = .idle
+    private(set) var presentation: AIHubPresentationModel = .placeholder
 
     private let listConversations: ListConversations
     private let featureGate: FeatureGate
+    private let clock: any ClockProviding
 
-    init(listConversations: ListConversations, featureGate: FeatureGate) {
+    init(listConversations: ListConversations, featureGate: FeatureGate, clock: any ClockProviding) {
         self.listConversations = listConversations
         self.featureGate = featureGate
+        self.clock = clock
     }
 
-    /// Display-only: it decides how a row RENDERS, never whether an action may run.
-    func access(for feature: PremiumFeature) -> FeatureAccess { featureGate.evaluate(feature) }
-
+    /// Lock state is display-only: it decides how a tile RENDERS, never whether an action
+    /// may run. Enforcement is RouteGuard plus the use case.
     func load() async {
-        state = .loading
+        let formatter = AIHubFormatter(now: clock.now, calendar: clock.calendar, locale: .current)
+        let isLocked: (PremiumFeature) -> Bool = { [featureGate] in !featureGate.canUse($0) }
+
+        if case .loaded = presentation.recentChats {} else {
+            presentation.recentChats = .loading
+        }
         do {
             let summaries = try await listConversations(vehicleID: nil)
-            state = summaries.isEmpty ? .empty : .loaded(summaries)
+            presentation = formatter.makeModel(summaries: summaries, isLocked: isLocked)
         } catch {
-            state = .failed(ErrorPresenter.present(error))
+            presentation = AIHubPresentationModel(
+                tools: AIHubFormatter.tools(isLocked: isLocked),
+                recentChats: .failed(ErrorPresenter.present(error).messageKey),
+                showsAllChatsLink: false
+            )
         }
     }
 }
