@@ -862,3 +862,30 @@ struct AIHubTests {
             == [.dashboardScan, .receiptScan, .damageAnalysis, .aiChat])
     }
 }
+
+@Suite("Add menu")
+struct QuickLogMenuTests {
+    @Test("Rows follow the design's order")
+    func order() {
+        #expect(QuickLogMenu.items { _ in false }.map(\.action)
+            == [.fuel, .service, .expense, .reminder, .scanReceipt, .document])
+    }
+
+    @Test("Only the AI scan is premium; manual logging is never locked")
+    func locks() {
+        let now = Date(timeIntervalSince1970: 1_760_000_000)
+        let items = QuickLogMenu.items { feature in
+            !FeatureGating.evaluate(
+                feature, entitlement: .free, usage: .available(now: now),
+                vehicleCount: 1, now: now
+            ).isAllowed
+        }
+        #expect(items.filter(\.isLocked).map(\.action) == [.scanReceipt])
+    }
+
+    @Test("The AI-powered row is the one drawn with the AI gradient")
+    func aiStyle() {
+        let ai = QuickLogMenu.items { _ in false }.filter { $0.iconStyle == .ai }
+        #expect(ai.map(\.action) == [.scanReceipt])
+    }
+}

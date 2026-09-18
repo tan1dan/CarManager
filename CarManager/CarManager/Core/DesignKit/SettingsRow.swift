@@ -7,6 +7,7 @@ struct SettingsRowView<Trailing: View>: View {
     let title: String
     /// Grey second line — "Yesterday" under a chat title. Settings rows have none.
     var subtitle: String? = nil
+    var iconStyle: RowIconStyle = .neutral
     let action: (() -> Void)?
     @ViewBuilder var trailing: Trailing
 
@@ -22,9 +23,9 @@ struct SettingsRowView<Trailing: View>: View {
         HStack(spacing: 12) {
             Image(systemName: symbolName)
                 .font(.system(size: 17, weight: .medium))
-                .foregroundStyle(DS.Colors.textPrimary)
+                .foregroundStyle(iconStyle.foreground)
                 .frame(width: 44, height: 44)
-                .background(Circle().fill(Color.white.opacity(0.051)))
+                .background(Circle().fill(iconStyle.background))
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)
@@ -47,6 +48,28 @@ struct SettingsRowView<Trailing: View>: View {
         }
         .padding(14)
         .contentShape(.rect)
+    }
+}
+
+/// The circle behind a row's glyph. The design uses three: neutral for most rows, accent
+/// blue for the everyday logging actions, and the AI gradient for AI-powered ones.
+enum RowIconStyle: Sendable {
+    case neutral, accent, ai
+
+    var foreground: Color {
+        switch self {
+        case .neutral: DS.Colors.textPrimary
+        case .accent: DS.Colors.accent
+        case .ai: .white
+        }
+    }
+
+    var background: AnyShapeStyle {
+        switch self {
+        case .neutral: AnyShapeStyle(Color.white.opacity(0.051))
+        case .accent: AnyShapeStyle(DS.Colors.accent.opacity(0.149))
+        case .ai: AnyShapeStyle(DS.Gradients.aiCard)
+        }
     }
 }
 
