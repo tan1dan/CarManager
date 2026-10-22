@@ -79,3 +79,34 @@ struct CircleBackButton: View {
         .accessibilityLabel("Back")
     }
 }
+
+/// The editor's bottom CTA: accent capsule with a check (Figma "Save entry").
+struct SaveButton: View {
+    let title: String
+    var symbol = "checkmark"
+    var isBusy = false
+    var isEnabled = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                if isBusy {
+                    ProgressView().tint(.white)
+                } else {
+                    Label(title, systemImage: symbol)
+                        .font(DS.Text.rowTitle)
+                        .labelStyle(.titleAndIcon)
+                }
+            }
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: DS.Layout.buttonHeight)
+            .background(Capsule().fill(DS.Gradients.accentButton))
+            .opacity(isEnabled ? 1 : 0.4)
+            .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled || isBusy)
+    }
+}

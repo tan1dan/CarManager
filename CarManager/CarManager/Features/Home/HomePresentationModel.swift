@@ -44,11 +44,16 @@ struct HomePresentationModel: Equatable, Sendable {
     }
 
     struct StatTile: Equatable, Sendable, Identifiable {
+        enum Spark: Equatable, Sendable { case bars, line }
         var id: String { label }
         var label: String
         var value: String?
         var delta: String?
-        var deltaTone: UpcomingRow.Tone
+        /// Up in spend or consumption is bad (danger), down is good (success).
+        var deltaTone: Tone
+        /// Mini chart in the tile's right half (Figma 04). Empty when there is no history.
+        var series: [Double?] = []
+        var spark: Spark = .bars
     }
 
     static let placeholder = HomePresentationModel(
@@ -66,6 +71,7 @@ struct HomeFormatter: Sendable {
 
     func makeModel(
         from dashboard: HomeDashboard,
+        analytics: VehicleAnalytics? = nil,
         userName: String?
     ) -> HomePresentationModel {
         HomePresentationModel(
@@ -77,7 +83,7 @@ struct HomeFormatter: Sendable {
                 .init(eyebrow: "AI RECOMMENDATION", body: $0.body.isEmpty ? $0.headline : $0.body)
             },
             upcoming: upcomingRows(dashboard),
-            tiles: tiles(dashboard)
+            tiles: tiles(analytics)
         )
     }
 
@@ -158,11 +164,41 @@ struct HomeFormatter: Sendable {
         return Array((reminders + documents).prefix(4))
     }
 
-    private func tiles(_ dashboard: HomeDashboard) -> [HomePresentationModel.StatTile] {
-        [
-            // Both figures come from the analytics engine, which is not built yet.
-            .init(label: "This month", value: nil, delta: nil, deltaTone: .neutral),
-            .init(label: "Avg. L/100km", value: nil, delta: nil, deltaTone: .neutral)
+    /// Both tiles come from the analytics engine. A figure that has no data stays `nil`
+    /// (rendered as "—"), and so does a change without a baseline.
+    static func tone(for change: Double?) -> Tone {
+        guard let change else { return .neutral }
+        return change > 0.005 ? .danger : change < -0.005 ? .success : .neutral
+    }
+
+    func tiles(_ analytics: VehicleAnalytics?) -> [HomePresentationModel.StatTile] {
+        let format = DisplayFormat(calendar: clock.calendar, unitSystem: unitSystem)
+        let consumptionLabel = unitSystem == .metric ? "Avg. L/100km" : "Avg. mpg"
+        guard let analytics else {
+            return [
+                .init(label: "This month", value: nil, delta: nil, deltaTone: .neutral),
+                .init(label: consumptionLabel, value: nil, delta: nil, deltaTone: .neutral)
+            ]
+        }
+        let spendChange = analytics.thisMonthChange
+        let consumptionChange = analytics.consumptionChange
+        return [
+            .init(
+                label: "This month",
+                value: analytics.hasAnyCost ? format.money(analytics.thisMonthSpend, analytics.currency, fractionDigits: 0) : nil,
+                delta: spendChange.map(format.percentChange),
+                deltaTone: Self.tone(for: spendChange),
+                series: analytics.hasAnyCost ? analytics.monthlySpend.suffix(6).map { $0.value.doubleValue } : [],
+                spark: .bars
+            ),
+            .init(
+                label: consumptionLabel,
+                value: analytics.averageConsumption.map(format.consumption),
+                delta: consumptionChange.map(format.percentChange),
+                deltaTone: Self.tone(for: consumptionChange),
+                series: analytics.monthlyConsumption.suffix(6).map(\.value),
+                spark: .line
+            )
         ]
     }
 

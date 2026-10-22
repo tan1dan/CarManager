@@ -259,21 +259,39 @@ struct ReceiptScanFlowTests {
         #expect(expense.source == .receiptScan(scan.id))
     }
 
-    @Test("The view model reaches review and refuses to confirm until reviewed")
+    @Test("The view model reaches review, saves nothing before it, and saves once confirmed")
     func viewModelGuardsConfirmation() async throws {
         let dependencies = makeDependencies(clock: clock)
+        let vehicleID = try await CreateVehicle(
+            vehicles: dependencies.vehicles, odometer: dependencies.odometer,
+            reminders: dependencies.reminders, clock: clock
+        )(VehicleDraft(brand: "Audi", model: "A4"), vehicleLimit: nil).vehicle.id
         let viewModel = ReceiptScanViewModel(
-            vehicleID: VehicleID(),
+            vehicleID: vehicleID,
             scanReceipt: makeScanner(dependencies),
             confirmReceiptScan: makeConfirmer(dependencies),
+            format: DisplayFormat(locale: Locale(identifier: "en_US"), calendar: clock.calendar),
             clock: clock
         )
 
-        #expect(!viewModel.canConfirm)
-        viewModel.acceptedTotal = true
-        #expect(!viewModel.canConfirm)
-        viewModel.acceptedDate = true
-        #expect(viewModel.canConfirm)
+        // Confirming before any review is a no-op.
+        await viewModel.confirm()
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).isEmpty)
+
+        viewModel.analyze(Data("receipt".utf8))
+        for _ in 0..<50 {
+            if case .awaitingReview = viewModel.scanState { break }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        guard case .awaitingReview = viewModel.scanState else {
+            Issue.record("Expected review, got \(viewModel.scanState)")
+            return
+        }
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).isEmpty)
+        #expect(viewModel.canSave)
+
+        await viewModel.confirm()
+        #expect(try await dependencies.expenses.expenses(vehicleID: vehicleID).count == 1)
     }
 }
 
@@ -335,7 +353,7 @@ struct VisionScanFlowTests {
 
         if case .idle = viewModel.state {} else { Issue.record("Expected the initial state to be idle") }
 
-        viewModel.capture()
+        viewModel.analyze(Data("dash".utf8))
         // Poll briefly: the stub provider resolves asynchronously.
         for _ in 0..<50 {
             if case .success = viewModel.state { break }
@@ -594,7 +612,7 @@ struct SettingsScreenTests {
     }
 
     @Test("Every designed row is present", arguments: [
-        "email", "password", "payment", "units", "region", "timezone",
+        "email", "subscription", "payment", "units", "region", "timezone",
         "notifications", "icloud", "export", "telemetry", "version", "support"
     ])
     func rowsPresent(_ id: String) {

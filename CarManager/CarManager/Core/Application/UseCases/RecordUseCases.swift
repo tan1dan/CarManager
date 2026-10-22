@@ -157,6 +157,20 @@ public struct QueryServiceHistory: Sendable {
     }
 }
 
+public struct DeleteServiceRecord: Sendable {
+    let services: any ServiceRepository
+    let odometer: any OdometerRepository
+
+    public init(services: any ServiceRepository, odometer: any OdometerRepository) {
+        self.services = services; self.odometer = odometer
+    }
+
+    public func callAsFunction(id: ServiceRecordID) async throws {
+        _ = try await services.delete(id: id)
+        try await odometer.deleteLinked(source: .serviceRecord(id))
+    }
+}
+
 // MARK: - Expenses
 
 public struct AddExpense: Sendable {
@@ -203,7 +217,36 @@ public struct LoadExpenses: Sendable {
     }
 }
 
+public struct DeleteExpense: Sendable {
+    let expenses: any ExpenseRepository
+    let odometer: any OdometerRepository
+
+    public init(expenses: any ExpenseRepository, odometer: any OdometerRepository) {
+        self.expenses = expenses; self.odometer = odometer
+    }
+
+    public func callAsFunction(id: ExpenseID) async throws {
+        _ = try await expenses.delete(id: id)
+        try await odometer.deleteLinked(source: .expense(id))
+    }
+}
+
 // MARK: - Reminders
+
+public struct DeleteReminder: Sendable {
+    let reminders: any ReminderRepository
+    let notifications: any NotificationScheduling
+
+    public init(reminders: any ReminderRepository, notifications: any NotificationScheduling) {
+        self.reminders = reminders; self.notifications = notifications
+    }
+
+    public func callAsFunction(id: ReminderID) async throws {
+        try await reminders.delete(id: id)
+        // Same identifier scheme as NotificationPlanner, so no orphaned alert fires later.
+        await notifications.cancelAll(matching: "reminder.\(id.raw.uuidString)")
+    }
+}
 
 public struct CreateReminder: Sendable {
     let reminders: any ReminderRepository
@@ -248,13 +291,16 @@ public struct CreateReminder: Sendable {
         // Scheduling is delegated — the domain never sees UNUserNotificationCenter.
         // Denied permission is a WARNING, not a failure: the reminder still works in-app.
         var warnings: [DomainWarning] = []
-        let authorization = await notifications.authorizationStatus()
+        let plan = NotificationPlanner.plan(for: reminder, now: now)
+        var authorization = await notifications.authorizationStatus()
+        // Ask at the moment the user creates something that needs it, not at first launch.
+        if authorization == .notDetermined, !plan.isEmpty {
+            authorization = (try? await notifications.requestAuthorization()) == true ? .authorized : .denied
+        }
         if authorization == .denied {
             warnings.append(.notificationsNotAuthorized)
         } else {
-            try? await notifications.schedule(
-                NotificationPlanner.plan(for: reminder, now: now)
-            )
+            try? await notifications.schedule(plan)
         }
         return Output(reminder: reminder, warnings: warnings)
     }
@@ -440,6 +486,36 @@ public struct AddDocument: Sendable {
         )
         try await documents.insert(document)
         return document
+    }
+}
+
+public struct DeleteDocument: Sendable {
+    let documents: any DocumentRepository
+    let files: any FileStorage
+
+    public init(documents: any DocumentRepository, files: any FileStorage) {
+        self.documents = documents; self.files = files
+    }
+
+    public func callAsFunction(id: DocumentID) async throws {
+        // Metadata first: a leftover file is harmless, a row pointing at nothing is not.
+        for ref in try await documents.delete(id: id) { try? await files.delete(ref) }
+    }
+}
+
+public struct LoadDocumentFile: Sendable {
+    let documents: any DocumentRepository
+    let files: any FileStorage
+
+    public init(documents: any DocumentRepository, files: any FileStorage) {
+        self.documents = documents; self.files = files
+    }
+
+    public func callAsFunction(id: DocumentID) async throws -> (DocumentMetadata, Data) {
+        guard let document = try await documents.document(id: id) else {
+            throw DomainError.document(.fileNotFound)
+        }
+        return (document, try await files.read(document.fileRef))
     }
 }
 

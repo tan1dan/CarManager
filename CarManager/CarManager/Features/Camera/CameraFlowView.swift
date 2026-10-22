@@ -17,22 +17,17 @@ struct CameraFlowView: View {
     }
 }
 
+/// Plate and vehicle-photo capture have no processing step yet; the screen says so rather
+/// than pretending to read anything.
 struct PlaceholderCameraView: View {
     let title: String
     @Environment(\.appModel) private var model
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 12) {
-                Text(title)
-                Text("Camera placeholder")
-            }
-            .navigationTitle(title)
-            .toolbar {
-                Button("Close") { model?.router.dismissFullScreen() }
-                    .accessibilityIdentifier("cameraClose")
-            }
-        }
+        ScanMessageView(symbol: "camera", title: title, message: "This scan arrives in a later update.",
+                        primaryTitle: "Close") { model?.router.dismissFullScreen() }
+            .background(DS.Colors.background.ignoresSafeArea())
+            .environment(\.colorScheme, .dark)
     }
 }
 

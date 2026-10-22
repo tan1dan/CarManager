@@ -68,7 +68,7 @@ Consequences, which must be surfaced in the UI copy (not hidden):
    by a real backend. That is a **Phase 11+ rewrite of the Data layer only** — the Domain,
    Application and Presentation layers are unaffected because everything goes through repositories.
 
-### A-04 — Onboarding order forces a local-first account model
+### A-04 — Onboarding order forces a local-first account model  *(superseded by ADR-016: no guest mode)*
 
 Screen 01 offers "Get started" and "I already have an account", and the MVP list puts *Add Vehicle*
 immediately after *Onboarding*. Requiring sign-in before the first vehicle would tank activation.

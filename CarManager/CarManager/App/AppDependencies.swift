@@ -82,8 +82,9 @@ public extension AppDependencies {
         // Scans are NOT persisted: a receipt scan lives only until the user confirms or
         // discards it, and nothing extracted may be written without that confirmation.
         let scratch = InMemoryStore()
+        let vehicles = SwiftDataVehicleRepository(store: store)
         return AppDependencies(
-            vehicles: SwiftDataVehicleRepository(store: store),
+            vehicles: vehicles,
             odometer: SwiftDataOdometerRepository(store: store),
             fuel: SwiftDataFuelRepository(store: store),
             services: SwiftDataServiceRepository(store: store),
@@ -95,11 +96,11 @@ public extension AppDependencies {
             inbox: SwiftDataNotificationInboxRepository(store: store),
             scans: InMemoryScanRepository(store: scratch),
             auth: makeAuthProvider(clock: clock),
-            subscriptions: StubSubscriptionProvider(clock: clock),
+            subscriptions: makeSubscriptions(clock: clock),
             ai: MockAIProvider(),
-            vision: StubVisionAnalysisProvider(),
-            textRecognizer: StubTextRecognizer(),
-            imagePreprocessor: StubImagePreprocessor(),
+            vision: OnDeviceVisionAnalysisProvider(vehicles: vehicles, clock: clock),
+            textRecognizer: VisionTextRecognizer(),
+            imagePreprocessor: JPEGImagePreprocessor(),
             files: DiskFileStorage(),
             notifications: UNNotificationScheduler(),
             exporter: StubDocumentExporter(),
@@ -167,10 +168,39 @@ public extension AppDependencies {
 }
 
 extension AppDependencies {
+    /// StoreKit is still a stub. `-debugPremium` (DEBUG only) starts as a subscriber so the
+    /// Premium screens can be checked without going through the paywall each launch.
+    static func makeSubscriptions(clock: any ClockProviding) -> any SubscriptionProviding {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-debugPremium") {
+            return StubSubscriptionProvider(entitlement: Entitlement(
+                tier: .premium, source: .direct, expiresAt: clock.now.addingTimeInterval(86_400 * 30),
+                willAutoRenew: true, lastVerifiedAt: clock.now
+            ), clock: clock)
+        }
+        #endif
+        return StubSubscriptionProvider(clock: clock)
+    }
+
     /// Identity is Sign in with Apple plus the Keychain — no service to configure.
     @MainActor
     static func makeAuthProvider(clock: any ClockProviding) -> any AuthProviding {
-        AppleAuthProvider(
+        #if DEBUG
+        // Simulator and UI-test runs cannot sign in to an Apple ID, so a DEBUG build started
+        // with `-debugSignedIn` gets a fixed test identity. Compiled out of Release: there is
+        // no way into a shipped build without a real Apple account.
+        if ProcessInfo.processInfo.arguments.contains("-debugSignedIn") {
+            return AppleAuthProvider(
+                identityStore: InMemoryAppleIdentityStore(StoredAppleIdentity(
+                    userID: "debug.user", displayName: "Alex Lindström",
+                    email: "alex@example.com", firstSignedInAt: clock.now
+                )),
+                credentialState: AlwaysAuthorizedCredentialState(),
+                clock: clock
+            )
+        }
+        #endif
+        return AppleAuthProvider(
             identityStore: KeychainAppleIdentityStore(),
             credentialState: SystemAppleCredentialState(),
             clock: clock

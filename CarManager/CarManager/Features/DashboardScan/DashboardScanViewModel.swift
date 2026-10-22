@@ -5,6 +5,8 @@ import Observation
 @Observable
 final class DashboardScanViewModel {
     private(set) var state: ProcessingState<DashboardScan> = .idle
+    private(set) var imageData: Data?
+    private(set) var failure: String?
 
     private let vehicleID: VehicleID?
     private let scanDashboard: ScanDashboard
@@ -15,15 +17,14 @@ final class DashboardScanViewModel {
         self.scanDashboard = scanDashboard
     }
 
-    func capture() {
+    func analyze(_ data: Data) {
+        imageData = data
         state = .processing
         task = Task {
             do {
-                let scan = try await scanDashboard(
-                    imageData: Data("placeholder-dashboard".utf8), vehicleID: vehicleID
-                )
-                state = .success(scan)
+                state = .success(try await scanDashboard(imageData: data, vehicleID: vehicleID))
             } catch {
+                failure = UserMessage.text(for: error)
                 state = .failed(ErrorPresenter.present(error))
             }
         }
@@ -31,6 +32,8 @@ final class DashboardScanViewModel {
 
     func reset() {
         task?.cancel()
+        imageData = nil
+        failure = nil
         state = .idle
     }
 }

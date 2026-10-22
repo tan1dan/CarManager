@@ -2,7 +2,11 @@ import SwiftUI
 
 /// The root application flow. It reacts to state — nothing here is hardcoded to one screen.
 ///
-///   launch → restore session → check auth → check onboarding → main app
+///   launch → restore session → signed in with Apple? → main app
+///                                              no    → welcome (Sign in with Apple)
+///
+/// There is no way past the welcome screen without an Apple account (ADR-016). Signing out,
+/// deleting the account or revoking the app in Settings all land back on it.
 struct RootView: View {
     @Environment(\.appModel) private var model
 
@@ -19,10 +23,14 @@ struct RootView: View {
                 // Sheets are presented from the router, never from a view's own @State.
                 // ModalHost walks the router's modal stack so sheets can genuinely stack.
                 .modifier(ModalHost(depth: 0))
-                // Getting in by signing in finishes onboarding; backing out of the auth flow
-                // leaves the user on the welcome screen.
+                // Signing in is the onboarding. Signing out drops every stack and sheet, so the
+                // next account does not land in the previous one's navigation.
                 .onChange(of: model.auth.state.isAuthenticated) { _, isAuthenticated in
-                    if isAuthenticated { model.onboarding.complete() }
+                    if isAuthenticated {
+                        model.onboarding.complete()
+                    } else {
+                        model.router.resetForSignOut()
+                    }
                 }
         } else {
             ProgressView()
@@ -36,12 +44,10 @@ struct RootView: View {
             // The splash blocks only until session restoration settles; the garage does not
             // wait for the network.
             LaunchPlaceholderView()
-        case .anonymous, .authenticated, .signedOut:
-            if model.onboarding.isCompleted {
-                RootTabView()
-            } else {
-                OnboardingView()
-            }
+        case .authenticated:
+            RootTabView()
+        case .anonymous, .signedOut:
+            OnboardingView()
         }
     }
 }

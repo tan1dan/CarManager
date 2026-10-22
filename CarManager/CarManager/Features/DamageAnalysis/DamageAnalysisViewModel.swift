@@ -5,6 +5,8 @@ import Observation
 @Observable
 final class DamageAnalysisViewModel {
     private(set) var state: ProcessingState<DamageAnalysis> = .idle
+    private(set) var imageData: Data?
+    private(set) var failure: String?
 
     private let vehicleID: VehicleID
     private let analyzeDamage: AnalyzeDamage
@@ -15,15 +17,14 @@ final class DamageAnalysisViewModel {
         self.analyzeDamage = analyzeDamage
     }
 
-    func analyze() {
+    func analyze(_ data: Data) {
+        imageData = data
         state = .processing
         task = Task {
             do {
-                let analysis = try await analyzeDamage(
-                    imagesData: [Data("placeholder-damage".utf8)], vehicleID: vehicleID
-                )
-                state = .success(analysis)
+                state = .success(try await analyzeDamage(imagesData: [data], vehicleID: vehicleID))
             } catch {
+                failure = UserMessage.text(for: error)
                 state = .failed(ErrorPresenter.present(error))
             }
         }
@@ -31,6 +32,8 @@ final class DamageAnalysisViewModel {
 
     func reset() {
         task?.cancel()
+        imageData = nil
+        failure = nil
         state = .idle
     }
 }

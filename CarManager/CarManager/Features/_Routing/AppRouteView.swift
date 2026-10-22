@@ -101,7 +101,6 @@ struct FullScreenRouteView: View {
     var body: some View {
         switch route {
         case .onboarding: OnboardingView()
-        case .authentication: AppleSignInView()
         case .camera(let purpose): CameraFlowView(purpose: purpose)
         case .documentViewer(let id): DocumentPreviewView(documentID: id)
         }

@@ -24,14 +24,24 @@ struct RootTabView: View {
             // `DS.Layout.tabBarReservedHeight` — neither safeAreaInset on the TabView nor on
             // the tab content propagates into the tabs' scroll views.
             .overlay(alignment: .bottom) {
-                CarManagerTabBar(
-                    selectedTab: model.router.selectedTab,
-                    onSelect: { model.router.select(tab: $0) },
-                    onAdd: { model.router.present(.quickLog) }
-                )
-                .padding(.bottom, 8)
+                if !hidesTabBar(model) {
+                    CarManagerTabBar(
+                        selectedTab: model.router.selectedTab,
+                        onSelect: { model.router.select(tab: $0) },
+                        onAdd: { model.router.present(.quickLog) }
+                    )
+                    .padding(.bottom, 8)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .animation(.snappy, value: hidesTabBar(model))
         }
+    }
+
+    /// The chat owns the bottom edge for its composer, like Messages.
+    private func hidesTabBar(_ model: AppModel) -> Bool {
+        if case .aiChat = model.router.router(for: model.router.selectedTab).path.last { return true }
+        return false
     }
 }
 

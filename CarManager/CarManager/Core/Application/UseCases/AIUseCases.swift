@@ -224,13 +224,15 @@ public struct ConfirmReceiptScan: Sendable {
     let addService: AddServiceRecord
     let addExpense: AddExpense
     let scans: any ScanRepository
+    /// Supplies the fuel type for a fuel receipt; a receipt rarely says it plainly.
+    let vehicles: (any VehicleRepository)?
 
     public init(
         addFuel: AddFuelEntry, addService: AddServiceRecord,
-        addExpense: AddExpense, scans: any ScanRepository
+        addExpense: AddExpense, scans: any ScanRepository, vehicles: (any VehicleRepository)? = nil
     ) {
         self.addFuel = addFuel; self.addService = addService
-        self.addExpense = addExpense; self.scans = scans
+        self.addExpense = addExpense; self.scans = scans; self.vehicles = vehicles
     }
 
     public func callAsFunction(_ confirmed: ConfirmedReceipt) async throws -> RecordRef {
@@ -244,11 +246,12 @@ public struct ConfirmReceiptScan: Sendable {
         let ref: RecordRef
         switch confirmed.kind {
         case .fuel:
+            let vehicle = try? await vehicles?.vehicle(id: confirmed.vehicleID)
             let output = try await addFuel(FuelEntryDraft(
                 vehicleID: confirmed.vehicleID, date: confirmed.date,
                 odometer: confirmed.odometer ?? Odometer(kilometers: 0),
                 volume: confirmed.fuelVolume ?? Volume(liters: 0),
-                totalCost: confirmed.total, fuelType: .petrol,
+                totalCost: confirmed.total, fuelType: vehicle?.fuelType ?? .petrol,
                 station: confirmed.vendor, source: .receiptScan(confirmed.scanID)
             ))
             ref = .fuel(output.entry.id)

@@ -2,17 +2,18 @@ import Foundation
 
 /// What a destination needs before it may be shown. Declared as data next to the routes,
 /// so adding a route forces a decision about its gating.
+///
+/// There is no per-route account flag: an Apple account is required for the whole app
+/// (ADR-016), and `RouteGuard` enforces that before it reads any of these.
 public struct RouteRequirements: Sendable, Hashable {
-    public var requiresAccount: Bool
     public var requiredFeature: PremiumFeature?
     public var requiresVehicle: Bool
     public var requiredDisclaimer: DisclaimerKind?
 
     public init(
-        requiresAccount: Bool = false, requiredFeature: PremiumFeature? = nil,
+        requiredFeature: PremiumFeature? = nil,
         requiresVehicle: Bool = false, requiredDisclaimer: DisclaimerKind? = nil
     ) {
-        self.requiresAccount = requiresAccount
         self.requiredFeature = requiredFeature
         self.requiresVehicle = requiresVehicle
         self.requiredDisclaimer = requiredDisclaimer
@@ -33,7 +34,7 @@ public extension AppRoute {
         case .analytics, .analyticsSection:
             RouteRequirements(requiredFeature: .advancedAnalytics, requiresVehicle: true)
         case .aiChat, .conversationHistory:
-            RouteRequirements(requiresAccount: true, requiredFeature: .aiChat)
+            RouteRequirements(requiredFeature: .aiChat)
         case .aiInsightDetail:
             RouteRequirements(requiredFeature: .aiInsights)
         case .dashboardScanResult, .damageAnalysisResult:
@@ -65,7 +66,7 @@ public extension ModalRoute {
 public extension FullScreenRoute {
     var requirements: RouteRequirements {
         switch self {
-        case .onboarding, .authentication, .documentViewer:
+        case .onboarding, .documentViewer:
             .none
         case .camera(let purpose):
             switch purpose {

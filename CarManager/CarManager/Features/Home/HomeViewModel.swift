@@ -9,10 +9,12 @@ final class HomeViewModel {
     private(set) var presentation: HomePresentationModel = .placeholder
 
     private let loadDashboard: LoadHomeDashboard
+    private let loadAnalytics: LoadVehicleAnalytics
     private let formatter: HomeFormatter
 
-    init(loadDashboard: LoadHomeDashboard, formatter: HomeFormatter) {
+    init(loadAnalytics: LoadVehicleAnalytics, loadDashboard: LoadHomeDashboard, formatter: HomeFormatter) {
         self.loadDashboard = loadDashboard
+        self.loadAnalytics = loadAnalytics
         self.formatter = formatter
     }
 
@@ -25,8 +27,12 @@ final class HomeViewModel {
         }
         state = .loading
         do {
-            let dashboard = try await loadDashboard(vehicleID: vehicleID)
-            presentation = formatter.makeModel(from: dashboard, userName: userName)
+            async let dashboardTask = loadDashboard(vehicleID: vehicleID)
+            // Analytics failing must not take the dashboard down with it: the tiles just
+            // fall back to "—".
+            async let analyticsTask = try? loadAnalytics(vehicleID: vehicleID)
+            let dashboard = try await dashboardTask
+            presentation = formatter.makeModel(from: dashboard, analytics: await analyticsTask, userName: userName)
             state = .loaded(dashboard)
         } catch {
             state = .failed(ErrorPresenter.present(error))

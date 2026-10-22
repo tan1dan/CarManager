@@ -133,7 +133,6 @@ public enum ModalRoute: Hashable, Codable, Sendable, Identifiable {
 /// Full-screen covers. Immersive or blocking flows, isolated from the navigation stack.
 public enum FullScreenRoute: Hashable, Codable, Sendable, Identifiable {
     case onboarding
-    case authentication
     case camera(CameraPurpose)
     case documentViewer(DocumentID)
 

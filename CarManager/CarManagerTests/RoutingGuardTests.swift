@@ -15,15 +15,6 @@ struct AuthenticationRoutingTests {
         #expect(decision == .redirect(.fullScreen(.onboarding)))
     }
 
-    @Test("The welcome screen can open sign-in before onboarding completes")
-    func authReachableDuringOnboarding() {
-        let guardian = RouteGuard()
-        let decision = guardian.evaluate(
-            .fullScreen(.authentication), context: .make(onboardingCompleted: false)
-        )
-        #expect(decision != .redirect(.fullScreen(.onboarding)))
-    }
-
     @Test("Onboarding itself is reachable while onboarding is incomplete")
     func onboardingReachable() {
         let decision = RouteGuard().evaluate(
@@ -32,24 +23,25 @@ struct AuthenticationRoutingTests {
         #expect(decision == .allow)
     }
 
-    @Test("An anonymous user is sent to sign-in for account-gated destinations")
-    func anonymousRedirectedToSignIn() {
-        let decision = RouteGuard().evaluate(
-            .tab(.ai, path: [.aiChat(nil)]), context: .make(auth: .anonymous)
-        )
-        #expect(decision == .redirect(.fullScreen(.authentication)))
+    @Test("Without an Apple account nothing is reachable — not even the local garage",
+          arguments: [AuthState.anonymous, .signedOut])
+    func signedOutReachesNothing(state: AuthState) {
+        let context = RouteGuard.Context.make(auth: state)
+        let vehicleID = VehicleID()
+        for destination in [
+            AppDestination.tab(.home), .tab(.garage), .tab(.garage, path: [.fuelHistory(vehicleID)]),
+            .tab(.ai, path: [.aiChat(nil)]), .modal(.fuelEditor(.create(vehicleID))),
+            .fullScreen(.camera(.receipt))
+        ] {
+            #expect(RouteGuard().evaluate(destination, context: context) == .redirect(.fullScreen(.onboarding)))
+        }
     }
 
-    @Test("An anonymous user can still use the whole local garage")
-    func anonymousCanUseGarage() {
+    @Test("The welcome screen and its legal links stay reachable when signed out")
+    func welcomeReachableSignedOut() {
         let context = RouteGuard.Context.make(auth: .anonymous)
-        let vehicleID = VehicleID()
-
-        #expect(RouteGuard().evaluate(.tab(.garage), context: context) == .allow)
-        #expect(RouteGuard().evaluate(
-            .tab(.garage, path: [.fuelHistory(vehicleID)]), context: context) == .allow)
-        #expect(RouteGuard().evaluate(
-            .modal(.fuelEditor(.create(vehicleID))), context: context) == .allow)
+        #expect(RouteGuard().evaluate(.fullScreen(.onboarding), context: context) == .allow)
+        #expect(RouteGuard().evaluate(.modal(.legal(.privacyPolicy)), context: context) == .allow)
     }
 
     @Test("The intercepted destination is stored and replayed after sign-in")
@@ -59,7 +51,7 @@ struct AuthenticationRoutingTests {
 
         router.navigate(to: target)
         #expect(router.pendingDestination == target)
-        #expect(router.fullScreen == .authentication)
+        #expect(router.fullScreen == .onboarding)
 
         // Simulate a successful sign-in.
         let signedIn = makeRouter(context: .make(

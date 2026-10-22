@@ -128,6 +128,20 @@ public final class AppRouter {
 
     public func dismissFullScreen() { fullScreen = nil }
 
+    /// Back one screen on the current tab — the round back button of every pushed screen.
+    public func pop() { router(for: selectedTab).pop() }
+
+    /// Forgets all navigation. Called when the account goes away, so nothing of one user's
+    /// session — open sheets, pushed screens, a destination waiting to be replayed —
+    /// survives into the next sign-in.
+    public func resetForSignOut() {
+        modalStack.removeAll()
+        fullScreen = nil
+        pendingDestination = nil
+        for tab in AppTab.allCases { router(for: tab).popToRoot() }
+        selectedTab = .home
+    }
+
     public func dismissAll() {
         modalStack.removeAll()
         fullScreen = nil

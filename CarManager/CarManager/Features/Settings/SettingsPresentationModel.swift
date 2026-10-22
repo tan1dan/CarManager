@@ -87,14 +87,15 @@ struct SettingsFormatter: Sendable {
     private func accountRows(authState: AuthState) -> [SettingsPresentationModel.Row] {
         let email = authState.profile?.email
         return [
+            // The only way in is Sign in with Apple, so there is no password to manage.
             .init(
-                id: "email", symbolName: "envelope", title: "Email",
+                id: "email", symbolName: "apple.logo", title: "Apple ID",
                 trailing: email.map { .value(truncatedEmail($0)) } ?? .value("Not signed in"),
                 action: .push(.settingsSection(.account))
             ),
             .init(
-                id: "password", symbolName: "lock", title: "Password",
-                trailing: .chevron, action: .push(.settingsSection(.account))
+                id: "subscription", symbolName: "crown", title: "Subscription",
+                trailing: .chevron, action: .push(.subscriptionSettings)
             ),
             // The design shows a stored card ("Visa ·· 4832"). The app deliberately holds no
             // card data, so this row links out to the App Store's billing settings instead of

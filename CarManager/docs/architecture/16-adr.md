@@ -419,3 +419,38 @@ decision greppable.
 - Sync is reported, not controlled: `CloudKitSyncStatusProvider` combines the mode the store
   opened in with `CKContainer.accountStatus()`, and Settings shows that instead of a switch
   that cannot actually turn mirroring off.
+
+---
+
+## ADR-016 — No guest mode: nothing is reachable without an Apple account
+
+**Decision.** The app has no "Continue without an account". `.anonymous` and `.signedOut` both
+render the welcome screen (`OnboardingView`) with one action — Sign in with Apple — plus the
+legal links. `RouteGuard` rule 1 redirects **every** destination to `.fullScreen(.onboarding)`
+while the user is not signed in or onboarding is incomplete; only the onboarding cover and the
+`.legal` sheet are reachable signed out (`RouteGuard.isReachableSignedOut`). A deep link or
+notification tap that arrives signed out is stored as the pending destination and replayed
+after sign-in. Signing out calls `AppRouter.resetForSignOut()`, which clears modals, covers,
+the pending destination and every tab's stack.
+
+**Reason.** The data lives in the user's private iCloud database and the AI quota, support
+and subscription restore all hang off the Apple identity (ADR-014). A guest garage would be a
+second, local-only data owner that later has to be migrated into the signed-in one — a merge
+problem with no upside, since Sign in with Apple is one tap and shares no email unless the
+user chooses to.
+
+**Consequences.**
+
+- A-04's guest mode is withdrawn; `AuthSessionStore.continueAsGuest()`,
+  `FullScreenRoute.authentication` and `RouteRequirements.requiresAccount` are removed —
+  every route now requires an account implicitly.
+- App Review guideline 5.1.1(v): an app may require an account when its core function is
+  account-based. Here the core function is a garage synced to the user's iCloud, which needs an
+  identity; the account is Apple's, so no personal data is collected to create it.
+- The Figma file still shows "Continue without an account" on screens 01–03 and a
+  "Home · Guest" state (45). Those are superseded by this ADR.
+- DEBUG builds accept `-debugSignedIn` (a fixed test identity) so screens can be checked in the
+  simulator without an Apple ID; it does not exist in Release.
+
+**Alternatives considered.** A guest mode limited to one vehicle, migrated on sign-in — rejected
+for the migration and duplicate-data risk above.

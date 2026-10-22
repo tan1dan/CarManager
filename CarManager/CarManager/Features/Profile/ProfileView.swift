@@ -194,29 +194,16 @@ struct ProfileView: View {
         .padding(.horizontal, DS.Layout.gutter)
     }
 
-    @ViewBuilder
+    /// Signing out returns to the welcome screen; the garage stays in iCloud.
     private var signOutButton: some View {
-        if model?.auth.state.isAuthenticated == true {
-            Button("Sign out") { Task { await viewModel?.signOut() } }
-                .font(DS.Text.rowTitle)
-                .foregroundStyle(DS.Colors.danger)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .dsSurface()
-                .padding(.horizontal, DS.Layout.gutter)
-                .accessibilityIdentifier("profileSignOut")
-        } else {
-            Button("Sign in") {
-                model?.router.presentFullScreen(.authentication)
-            }
+        Button("Sign out") { Task { await viewModel?.signOut() } }
             .font(DS.Text.rowTitle)
-            .foregroundStyle(DS.Colors.accent)
+            .foregroundStyle(DS.Colors.danger)
             .frame(maxWidth: .infinity)
             .frame(height: 52)
             .dsSurface()
             .padding(.horizontal, DS.Layout.gutter)
-            .accessibilityIdentifier("profileSignIn")
-        }
+            .accessibilityIdentifier("profileSignOut")
     }
 
     @ViewBuilder

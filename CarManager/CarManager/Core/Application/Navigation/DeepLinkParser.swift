@@ -24,6 +24,7 @@ public enum DeepLinkParser {
                 case "expenses": return .tab(.garage, path: [.vehicleDetail(id), .expenses(id)])
                 case "documents": return .tab(.garage, path: [.vehicleDetail(id), .documents(id)])
                 case "reminders": return .tab(.garage, path: [.vehicleDetail(id), .reminders(id)])
+                case "analytics": return .tab(.garage, path: [.vehicleDetail(id), .analytics(id, .sixMonths)])
                 default: break
                 }
             }
@@ -52,6 +53,10 @@ public enum DeepLinkParser {
                 return .tab(.ai, path: [.aiChat(conversation)])
             }
             return .tab(.ai)
+
+        case "scan":
+            guard let raw = segments.first, let purpose = CameraPurpose(rawValue: raw) else { return nil }
+            return .fullScreen(.camera(purpose))
 
         case "alerts":
             return .tab(.home, path: [.alerts])

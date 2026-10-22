@@ -37,7 +37,7 @@ extension AIUsageSnapshot {
 extension RouteGuard.Context {
     static func make(
         onboardingCompleted: Bool = true,
-        auth: AuthState = .anonymous,
+        auth: AuthState = .authenticated(UserProfile(authProvider: .apple, createdAt: FixedClock().now)),
         entitlement: Entitlement = .free,
         usage: AIUsageSnapshot? = nil,
         vehicleCount: Int = 1,

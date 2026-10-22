@@ -40,5 +40,4 @@ public final class AuthSessionStore {
     /// the auth provider itself.
     public func adopt(_ profile: UserProfile) { state = .authenticated(profile) }
 
-    public func continueAsGuest() { state = .anonymous }
 }

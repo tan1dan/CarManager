@@ -171,6 +171,11 @@ struct HomeView: View {
         guard let model else { return }
         if viewModel == nil {
             viewModel = HomeViewModel(
+                loadAnalytics: LoadVehicleAnalytics(
+                    vehicles: model.dependencies.vehicles, fuel: model.dependencies.fuel,
+                    services: model.dependencies.services, expenses: model.dependencies.expenses,
+                    odometer: model.dependencies.odometer, clock: model.dependencies.clock
+                ),
                 loadDashboard: LoadHomeDashboard(
                     vehicles: model.dependencies.vehicles,
                     odometer: model.dependencies.odometer,
@@ -378,22 +383,34 @@ private struct StatTileView: View {
                 .font(DS.Text.caption)
                 .tracking(DS.Text.defaultTracking)
                 .foregroundStyle(DS.Colors.textSecondary)
-            Text(tile.value ?? "—")
-                .font(DS.Text.headline)
-                .tracking(DS.Text.headlineTracking)
-                .foregroundStyle(DS.Colors.onCardPrimary)
+            HStack(alignment: .bottom, spacing: 8) {
+                Text(tile.value ?? "—")
+                    .font(DS.Text.headline)
+                    .tracking(DS.Text.headlineTracking)
+                    .foregroundStyle(DS.Colors.onCardPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .layoutPriority(1)
+                Spacer(minLength: 0)
+                // Mini chart from Figma 04: last six months.
+                if tile.series.compactMap({ $0 }).count >= 2 {
+                    Group {
+                        switch tile.spark {
+                        case .bars: BarSeriesChart(values: tile.series, spacing: 4, cornerRadius: 3)
+                        case .line: TrendLineChart(values: tile.series, showsGrid: false, showsAxisLabels: false, lineWidth: 2)
+                        }
+                    }
+                    .frame(width: 52, height: 36)
+                }
+            }
             if let delta = tile.delta {
                 Text(delta)
                     .font(DS.Text.badge)
                     .tracking(DS.Text.defaultTracking)
-                    .foregroundStyle(tile.deltaTone == .danger ? DS.Colors.danger : DS.Colors.textPrimary)
+                    .foregroundStyle(tile.deltaTone == .neutral ? DS.Colors.textPrimary : tile.deltaTone.color)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
-                    .background(
-                        Capsule().fill(
-                            tile.deltaTone == .danger ? DS.Colors.danger.opacity(0.149) : Color.clear
-                        )
-                    )
+                    .background(Capsule().fill(tile.deltaTone == .neutral ? Color.white.opacity(0.09) : tile.deltaTone.color.opacity(0.149)))
             } else {
                 Color.clear.frame(height: 19)
             }

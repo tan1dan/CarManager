@@ -40,9 +40,11 @@ public struct RouteGuard: Sendable {
 
     public init() {}
 
-    static func isReachableDuringOnboarding(_ destination: AppDestination) -> Bool {
+    /// The only things a signed-out user can reach: the welcome screen and the legal
+    /// documents it links to.
+    static func isReachableSignedOut(_ destination: AppDestination) -> Bool {
         switch destination.fullScreen {
-        case .onboarding?, .authentication?: return true
+        case .onboarding?: return true
         default: break
         }
         switch destination.modal {
@@ -52,18 +54,15 @@ public struct RouteGuard: Sendable {
     }
 
     public func evaluate(_ destination: AppDestination, context: Context) -> Decision {
-        // 1. Onboarding blocks everything else — except what the welcome screen itself opens:
-        //    the auth flow and the legal documents it links to.
-        if !context.isOnboardingCompleted, !Self.isReachableDuringOnboarding(destination) {
+        // 1. No Apple account, no app (ADR-016). The root view already shows the welcome
+        //    screen in that state; this rule makes deep links and notification taps obey the
+        //    same law. The destination is kept and replayed once the user signs in.
+        let signedIn = context.authState.isAuthenticated
+        if (!signedIn || !context.isOnboardingCompleted), !Self.isReachableSignedOut(destination) {
             return .redirect(.fullScreen(.onboarding))
         }
 
         let requirements = Self.requirements(for: destination)
-
-        // 2. Account required and the user is anonymous → sign in, then replay.
-        if requirements.requiresAccount, !context.authState.isAuthenticated {
-            return .present(.paywall(.feature(.aiChat))).replacingAuthGate()
-        }
 
         // 3. A vehicle is required and none exists → send them to create one.
         if requirements.requiresVehicle, !context.hasSelectedVehicle {
@@ -119,16 +118,9 @@ public struct RouteGuard: Sendable {
 
 private extension RouteRequirements {
     mutating func merge(_ other: RouteRequirements) {
-        requiresAccount = requiresAccount || other.requiresAccount
         requiresVehicle = requiresVehicle || other.requiresVehicle
         requiredFeature = requiredFeature ?? other.requiredFeature
         requiredDisclaimer = requiredDisclaimer ?? other.requiredDisclaimer
     }
 }
 
-private extension RouteGuard.Decision {
-    /// An anonymous user hitting an account-gated route gets the sign-in flow, not a paywall.
-    func replacingAuthGate() -> RouteGuard.Decision {
-        .redirect(.fullScreen(.authentication))
-    }
-}

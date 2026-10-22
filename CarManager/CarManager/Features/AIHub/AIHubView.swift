@@ -243,24 +243,6 @@ struct AIHubView: View {
     }
 }
 
-struct ConversationHistoryView: View {
-    @Environment(\.appModel) private var model
-    @State private var summaries: [ConversationSummary] = []
-
-    var body: some View {
-        List(summaries) { summary in
-            Button(summary.title) { model?.router.push(.aiChat(summary.id), in: .ai) }
-        }
-        .navigationTitle("Conversations")
-        .task {
-            guard let model else { return }
-            summaries = (try? await ListConversations(
-                conversations: model.dependencies.conversations
-            )(vehicleID: nil)) ?? []
-        }
-    }
-}
-
 struct AIInsightDetailsView: View {
     let insightID: InsightID
     var body: some View { Text("AI Insight Details").navigationTitle("Insight") }

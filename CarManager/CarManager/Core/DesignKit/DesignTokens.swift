@@ -19,6 +19,13 @@ extension DS {
         static let accent = Color(hex: 0x3881F9)
         /// #F94144 — destructive / attention.
         static let danger = Color(hex: 0xF94144)
+        /// #F9A341 — "check this" (low AI confidence, consumption up, due soon).
+        static let warning = Color(hex: 0xF9A341)
+        /// #39D98A — an improvement (spend down, best month).
+        static let success = Color(hex: 0x39D98A)
+
+        /// Chart series, in the order categories are drawn.
+        static let series: [Color] = [accent, Color(hex: 0x8B6CF6), Color(hex: 0x14C3B8), warning, Color(hex: 0xF472B6), success]
 
         /// #FAFAFA — primary text.
         static let textPrimary = Color(hex: 0xFAFAFA)
