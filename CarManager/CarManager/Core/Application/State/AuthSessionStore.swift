@@ -14,24 +14,14 @@ public final class AuthSessionStore {
     /// must never keep a user out of their own offline data.
     public func restore() async {
         do {
-            if let session = try await auth.restoreSession() {
-                state = .authenticated(session.profile)
+            if let profile = try await auth.restoreSession() {
+                state = .authenticated(profile)
             } else {
                 state = .anonymous
             }
         } catch {
             state = .anonymous
         }
-    }
-
-    public func signIn(_ credentials: AuthCredentials) async throws {
-        let session = try await auth.signIn(credentials)
-        state = .authenticated(session.profile)
-    }
-
-    public func signUp(_ registration: AuthRegistration) async throws {
-        let session = try await auth.signUp(registration)
-        state = .authenticated(session.profile)
     }
 
     /// Signing out clears the account session. It does NOT delete local or iCloud data —
@@ -46,9 +36,9 @@ public final class AuthSessionStore {
         state = .signedOut
     }
 
-    /// Adopts a session produced by a use case, so the ViewModel never has to reach into
+    /// Adopts a profile produced by a use case, so the ViewModel never has to reach into
     /// the auth provider itself.
-    public func adopt(_ session: AuthSession) { state = .authenticated(session.profile) }
+    public func adopt(_ profile: UserProfile) { state = .authenticated(profile) }
 
     public func continueAsGuest() { state = .anonymous }
 }

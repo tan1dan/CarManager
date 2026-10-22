@@ -49,8 +49,10 @@ public enum PersistenceError: Error, Sendable, Equatable {
 
 public enum AuthenticationError: Error, Sendable, Equatable {
     case invalidCredentials
-    case emailAlreadyInUse
-    case sessionExpired
+    /// The user cancelled the Apple sheet — not an error to show.
+    case cancelled
+    /// Apple access was revoked in Settings, or the device has no iCloud account.
+    case appleAccountUnavailable
     case providerFailed(String)
     case requiresReauthentication
     case networkUnavailable

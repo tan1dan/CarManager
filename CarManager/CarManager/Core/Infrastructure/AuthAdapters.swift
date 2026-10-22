@@ -1,57 +1,88 @@
 import Foundation
 
-/// A local stand-in for the backend auth service. Real sign-in exchanges an Apple/Google/email
-/// credential at the backend for a session; tokens then live in the Keychain.
+/// Account identity backed by Sign in with Apple alone.
 ///
-/// PLACEHOLDER: no network, no Keychain yet. It exists so the authentication FLOW is real
-/// and testable at this stage.
-public actor StubAuthProvider: AuthProviding {
-    private var session: AuthSession?
-    private let clock: any ClockProviding
-    private let shouldRestore: Bool
+/// Apple authenticates the user; this type only remembers who that was. The identifier lives
+/// in the Keychain, so it survives a reinstall, and every launch re-asks Apple whether the
+/// authorization still stands — the user can revoke it in Settings at any time.
+public struct AppleAuthProvider: AuthProviding {
+    let identityStore: any AppleIdentityStoring
+    let credentialState: any AppleCredentialStateProviding
+    let clock: any ClockProviding
 
-    public init(clock: any ClockProviding = SystemClock(), restoresSession: Bool = false) {
+    public init(
+        identityStore: any AppleIdentityStoring,
+        credentialState: any AppleCredentialStateProviding,
+        clock: any ClockProviding
+    ) {
+        self.identityStore = identityStore
+        self.credentialState = credentialState
         self.clock = clock
-        self.shouldRestore = restoresSession
     }
 
-    public func restoreSession() async throws -> AuthSession? {
-        guard shouldRestore else { return session }
-        if session == nil { session = Self.makeSession(provider: .email, email: "demo@example.com", now: clock.now) }
-        return session
-    }
-
-    public func signIn(_ credentials: AuthCredentials) async throws -> AuthSession {
-        let created: AuthSession = switch credentials {
-        case .email(let email, _): Self.makeSession(provider: .email, email: email, now: clock.now)
-        case .apple: Self.makeSession(provider: .apple, email: nil, now: clock.now)
-        case .google: Self.makeSession(provider: .google, email: nil, now: clock.now)
+    public func restoreSession() async throws -> UserProfile? {
+        guard let stored = try identityStore.load() else { return nil }
+        switch await credentialState.state(forUserID: stored.userID) {
+        case .authorized:
+            return stored.profile
+        case .revoked, .notFound:
+            // Access was taken away in Settings, or the Apple ID is gone from this device.
+            try? identityStore.clear()
+            return nil
         }
-        session = created
-        return created
     }
 
-    public func signUp(_ registration: AuthRegistration) async throws -> AuthSession {
-        let created = Self.makeSession(
-            provider: .email, email: registration.email, name: registration.name, now: clock.now
-        )
-        session = created
-        return created
+    public func signInWithApple(_ credential: AppleIDCredential) async throws -> UserProfile {
+        let existing = try? identityStore.load()
+        let identity: StoredAppleIdentity
+        if let existing, existing.userID == credential.userID {
+            identity = existing.merging(credential)
+        } else {
+            identity = StoredAppleIdentity(
+                userID: credential.userID,
+                displayName: credential.fullName,
+                email: credential.email,
+                firstSignedInAt: clock.now
+            )
+        }
+        try identityStore.save(identity)
+        return identity.profile
     }
 
-    public func signOut() async throws { session = nil }
-    public func deleteAccount() async throws { session = nil }
-    public func requestPasswordReset(email: String) async throws {}
-
-    private static func makeSession(
-        provider: AuthProvider, email: String?, name: String? = nil, now: Date
-    ) -> AuthSession {
-        AuthSession(
-            profile: UserProfile(
-                displayName: name, email: email, authProvider: provider, createdAt: now
-            ),
-            accessToken: UUID().uuidString,
-            expiresAt: now.addingTimeInterval(3600)
-        )
+    public func signOut() async throws {
+        try identityStore.clear()
     }
+
+    /// Forgets the account on this device. The garage itself lives in the user's iCloud, and
+    /// the Apple authorization can only be revoked by the user in Settings, so deleting the
+    /// app's own data is a separate step owned by the CloudKit layer.
+    public func deleteAccount() async throws {
+        try identityStore.clear()
+    }
+}
+
+/// In-memory identity, for tests and for DEBUG runs that should start signed out.
+public final class InMemoryAppleIdentityStore: AppleIdentityStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var identity: StoredAppleIdentity?
+
+    public init(_ identity: StoredAppleIdentity? = nil) { self.identity = identity }
+
+    public func load() throws -> StoredAppleIdentity? {
+        lock.withLock { identity }
+    }
+
+    public func save(_ identity: StoredAppleIdentity) throws {
+        lock.withLock { self.identity = identity }
+    }
+
+    public func clear() throws {
+        lock.withLock { identity = nil }
+    }
+}
+
+/// Always says the stored identity is fine — used by tests and previews.
+public struct AlwaysAuthorizedCredentialState: AppleCredentialStateProviding {
+    public init() {}
+    public func state(forUserID userID: String) async -> AppleCredentialState { .authorized }
 }

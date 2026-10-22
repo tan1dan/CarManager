@@ -104,7 +104,6 @@ struct SettingsView: View {
                 guard let preferences = model?.dependencies.preferences else { return false }
                 return switch kind {
                 case .notifications: preferences.notificationsEnabled
-                case .iCloudSync: preferences.iCloudSyncEnabled
                 case .telemetry: preferences.telemetryEnabled
                 }
             },
@@ -112,7 +111,6 @@ struct SettingsView: View {
                 guard let preferences = model?.dependencies.preferences else { return }
                 switch kind {
                 case .notifications: preferences.notificationsEnabled = newValue
-                case .iCloudSync: preferences.iCloudSyncEnabled = newValue
                 case .telemetry: preferences.telemetryEnabled = newValue
                 }
                 viewModel?.refresh()
@@ -153,10 +151,11 @@ struct SettingsView: View {
                 authStore: model.auth,
                 featureGate: model.featureGate,
                 exportPDF: ExportVehicleHistoryPDF(exporter: model.dependencies.exporter),
-                router: model.router
+                router: model.router,
+                syncStore: model.sync
             )
         }
-        viewModel?.refresh()
+        await viewModel?.load()
     }
 }
 
@@ -201,11 +200,8 @@ struct SettingsSectionView: View {
 
             case .data:
                 // Per the architecture recommendation, iCloud sync is NOT premium-gated.
-                Toggle("iCloud Sync", isOn: Binding(
-                    get: { model?.dependencies.preferences.iCloudSyncEnabled ?? true },
-                    set: { model?.dependencies.preferences.iCloudSyncEnabled = $0 }
-                ))
-                .accessibilityIdentifier("iCloudSyncToggle")
+                // Mirroring is decided when the store opens; Settings reports it, see
+                // SettingsFormatter.describe(_:).
                 Button("Export Data") {}.accessibilityIdentifier("settingsExport")
                 Button("Import Data") {}
                 Button("Delete All Data", role: .destructive) {}

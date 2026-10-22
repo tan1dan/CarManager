@@ -2,41 +2,24 @@ import Foundation
 
 // MARK: - Authentication
 
-public struct SignIn: Sendable {
+/// Signing in exchanges the Apple credential for a profile. There is nothing to validate
+/// locally: Apple has already authenticated the user.
+public struct SignInWithApple: Sendable {
     let auth: any AuthProviding
     public init(auth: any AuthProviding) { self.auth = auth }
 
-    public func callAsFunction(email: String, password: String) async throws -> AuthSession {
-        try AuthValidator.validateSignIn(email: email, password: password)
-        return try await auth.signIn(.email(email, password: password))
-    }
-
-    public func withApple(identityToken: String) async throws -> AuthSession {
-        try await auth.signIn(.apple(identityToken: identityToken))
-    }
-
-    public func withGoogle(idToken: String) async throws -> AuthSession {
-        try await auth.signIn(.google(idToken: idToken))
+    public func callAsFunction(_ credential: AppleIDCredential) async throws -> UserProfile {
+        guard !credential.userID.isEmpty else {
+            throw DomainError.authentication(.invalidCredentials)
+        }
+        return try await auth.signInWithApple(credential)
     }
 }
 
-public struct SignUp: Sendable {
+public struct SignOut: Sendable {
     let auth: any AuthProviding
     public init(auth: any AuthProviding) { self.auth = auth }
-
-    public func callAsFunction(_ registration: AuthRegistration) async throws -> AuthSession {
-        try AuthValidator.validateSignUp(registration)
-        return try await auth.signUp(registration)
-    }
-}
-
-public struct RequestPasswordReset: Sendable {
-    let auth: any AuthProviding
-    public init(auth: any AuthProviding) { self.auth = auth }
-    public func callAsFunction(email: String) async throws {
-        guard email.contains("@") else { throw DomainError.validation(.invalidEmail) }
-        try await auth.requestPasswordReset(email: email)
-    }
+    public func callAsFunction() async throws { try await auth.signOut() }
 }
 
 // MARK: - Subscription

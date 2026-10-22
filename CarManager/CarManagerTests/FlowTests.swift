@@ -444,7 +444,7 @@ struct ProfileTests {
 
     private func profile(name: String?, email: String?) -> AuthState {
         .authenticated(UserProfile(
-            displayName: name, email: email, authProvider: .email, createdAt: FixedClock().now
+            displayName: name, email: email, authProvider: .apple, createdAt: FixedClock().now
         ))
     }
 
@@ -579,8 +579,13 @@ struct SettingsScreenTests {
         )
     }
 
-    private func model(auth: AuthState = .anonymous, units: UnitSystem = .metric) -> SettingsPresentationModel {
-        formatter.makeModel(authState: auth, unitSystem: units, telemetryEnabled: false)
+    private func model(
+        auth: AuthState = .anonymous, units: UnitSystem = .metric,
+        sync: SyncState = .idle(lastSyncedAt: nil)
+    ) -> SettingsPresentationModel {
+        formatter.makeModel(
+            authState: auth, unitSystem: units, telemetryEnabled: false, syncState: sync
+        )
     }
 
     @Test("The four designed sections are present in order")
@@ -617,7 +622,7 @@ struct SettingsScreenTests {
         )
 
         let signedIn = model(auth: .authenticated(UserProfile(
-            email: "alex@carassistant.app", authProvider: .email, createdAt: clock.now
+            email: "alex@carassistant.app", authProvider: .apple, createdAt: clock.now
         )))
         #expect(
             signedIn.sections.flatMap(\.rows).first { $0.id == "email" }?.trailing
@@ -640,14 +645,27 @@ struct SettingsScreenTests {
         #expect(rows.first { $0.id == "timezone" }?.action == SettingsPresentationModel.Action.inert)
     }
 
-    @Test("The three boolean preferences are switches", arguments: [
+    @Test("The boolean preferences are switches", arguments: [
         ("notifications", SettingsPresentationModel.ToggleKind.notifications),
-        ("icloud", .iCloudSync),
         ("telemetry", .telemetry)
     ])
     func togglesAreSwitches(_ input: (id: String, kind: SettingsPresentationModel.ToggleKind)) {
         let row = model().sections.flatMap(\.rows).first { $0.id == input.id }
         #expect(row?.trailing == .toggle(input.kind))
+    }
+
+    /// iCloud is NOT a switch: mirroring is decided when the store opens and depends on the
+    /// device's iCloud account. The row reports what is actually happening.
+    @Test("The iCloud row reports the real sync state", arguments: [
+        (SyncState.idle(lastSyncedAt: nil), "On"),
+        (.syncing, "Syncing…"),
+        (.unavailable(reason: "No iCloud account"), "No iCloud account"),
+        (.failed(message: "Temporarily unavailable", willRetry: true), "Temporarily unavailable")
+    ])
+    func iCloudRowShowsState(_ input: (state: SyncState, label: String)) {
+        let row = model(sync: input.state).sections.flatMap(\.rows).first { $0.id == "icloud" }
+        #expect(row?.trailing == .value(input.label))
+        #expect(row?.action == SettingsPresentationModel.Action.inert)
     }
 
     @Test("PDF export is its own action so it can be premium-gated before a file is produced")

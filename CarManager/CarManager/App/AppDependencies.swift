@@ -66,27 +66,35 @@ public struct AppDependencies: Sendable {
 }
 
 public extension AppDependencies {
-    /// PLACEHOLDER WIRING: repositories are in-memory and the external providers are stubs.
-    /// Because everything sits behind a protocol, replacing them with SwiftData + CloudKit,
-    /// StoreKit 2 and the backend AI proxy is a change to this factory only.
+    /// Records live in SwiftData, mirrored to the user's private CloudKit database. The
+    /// remaining stubs are the external services (StoreKit, AI, Vision), each behind a
+    /// protocol, so replacing them stays a change to this factory only.
+    @MainActor
     static func live(
         preferences: any PreferencesProviding = UserPreferencesStore(),
         clock: any ClockProviding = SystemClock()
     ) -> AppDependencies {
-        let store = InMemoryStore()
+        let (container, mode) = PersistenceContainer.make()
+        if case .localOnly(let reason) = mode {
+            print("⚠️ iCloud mirroring is off, data stays on this device. Reason: \(reason)")
+        }
+        let store = PersistenceActor(modelContainer: container)
+        // Scans are NOT persisted: a receipt scan lives only until the user confirms or
+        // discards it, and nothing extracted may be written without that confirmation.
+        let scratch = InMemoryStore()
         return AppDependencies(
-            vehicles: InMemoryVehicleRepository(store: store),
-            odometer: InMemoryOdometerRepository(store: store),
-            fuel: InMemoryFuelRepository(store: store),
-            services: InMemoryServiceRepository(store: store),
-            expenses: InMemoryExpenseRepository(store: store),
-            reminders: InMemoryReminderRepository(store: store),
-            documents: InMemoryDocumentRepository(store: store),
-            conversations: InMemoryAIConversationRepository(store: store),
-            insights: InMemoryAIInsightRepository(store: store),
-            inbox: InMemoryNotificationInboxRepository(store: store),
-            scans: InMemoryScanRepository(store: store),
-            auth: StubAuthProvider(clock: clock),
+            vehicles: SwiftDataVehicleRepository(store: store),
+            odometer: SwiftDataOdometerRepository(store: store),
+            fuel: SwiftDataFuelRepository(store: store),
+            services: SwiftDataServiceRepository(store: store),
+            expenses: SwiftDataExpenseRepository(store: store),
+            reminders: SwiftDataReminderRepository(store: store),
+            documents: SwiftDataDocumentRepository(store: store),
+            conversations: SwiftDataAIConversationRepository(store: store),
+            insights: SwiftDataAIInsightRepository(store: store),
+            inbox: SwiftDataNotificationInboxRepository(store: store),
+            scans: InMemoryScanRepository(store: scratch),
+            auth: makeAuthProvider(clock: clock),
             subscriptions: StubSubscriptionProvider(clock: clock),
             ai: MockAIProvider(),
             vision: StubVisionAnalysisProvider(),
@@ -96,7 +104,7 @@ public extension AppDependencies {
             notifications: UNNotificationScheduler(),
             exporter: StubDocumentExporter(),
             preferences: preferences,
-            syncStatus: StubSyncStatusProvider(),
+            syncStatus: CloudKitSyncStatusProvider(mode: mode),
             connectivity: AlwaysOnlineConnectivity(),
             telemetry: ConsoleTelemetry(isEnabled: preferences.telemetryEnabled),
             clock: clock,
@@ -107,6 +115,9 @@ public extension AppDependencies {
 
     /// Fully in-memory, with a mutation closure so a single dependency can be swapped:
     /// `.testing { $0.clock = FixedClock(now: …) }`
+    ///
+    /// Uses the hand-written in-memory repositories rather than SwiftData: they are faster
+    /// and dependency-free. `persistence()` below is what exercises the real store.
     static func testing(
         preferences: any PreferencesProviding = InMemoryPreferences(),
         clock: any ClockProviding = SystemClock(),
@@ -125,7 +136,11 @@ public extension AppDependencies {
             insights: InMemoryAIInsightRepository(store: store),
             inbox: InMemoryNotificationInboxRepository(store: store),
             scans: InMemoryScanRepository(store: store),
-            auth: StubAuthProvider(clock: clock),
+            auth: AppleAuthProvider(
+                identityStore: InMemoryAppleIdentityStore(),
+                credentialState: AlwaysAuthorizedCredentialState(),
+                clock: clock
+            ),
             subscriptions: StubSubscriptionProvider(clock: clock),
             ai: MockAIProvider(chunkDelay: .zero),
             vision: StubVisionAnalysisProvider(),
@@ -148,5 +163,39 @@ public extension AppDependencies {
 
     static func preview() -> AppDependencies {
         testing(preferences: InMemoryPreferences(onboardingCompletedVersion: 1))
+    }
+}
+
+extension AppDependencies {
+    /// Identity is Sign in with Apple plus the Keychain — no service to configure.
+    @MainActor
+    static func makeAuthProvider(clock: any ClockProviding) -> any AuthProviding {
+        AppleAuthProvider(
+            identityStore: KeychainAppleIdentityStore(),
+            credentialState: SystemAppleCredentialState(),
+            clock: clock
+        )
+    }
+
+    /// The real SwiftData stack on an in-memory store — same code paths as production,
+    /// nothing written to disk, nothing mirrored to CloudKit.
+    static func persistence(
+        preferences: any PreferencesProviding = InMemoryPreferences(),
+        clock: any ClockProviding = SystemClock()
+    ) -> AppDependencies {
+        let (container, _) = PersistenceContainer.make(inMemory: true)
+        let store = PersistenceActor(modelContainer: container)
+        var dependencies = AppDependencies.testing(preferences: preferences, clock: clock)
+        dependencies.vehicles = SwiftDataVehicleRepository(store: store)
+        dependencies.odometer = SwiftDataOdometerRepository(store: store)
+        dependencies.fuel = SwiftDataFuelRepository(store: store)
+        dependencies.services = SwiftDataServiceRepository(store: store)
+        dependencies.expenses = SwiftDataExpenseRepository(store: store)
+        dependencies.reminders = SwiftDataReminderRepository(store: store)
+        dependencies.documents = SwiftDataDocumentRepository(store: store)
+        dependencies.conversations = SwiftDataAIConversationRepository(store: store)
+        dependencies.insights = SwiftDataAIInsightRepository(store: store)
+        dependencies.inbox = SwiftDataNotificationInboxRepository(store: store)
+        return dependencies
     }
 }

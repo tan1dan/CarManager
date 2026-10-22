@@ -30,7 +30,7 @@ struct SettingsPresentationModel: Equatable, Sendable {
     }
 
     enum ToggleKind: String, Equatable, Sendable {
-        case notifications, iCloudSync, telemetry
+        case notifications, telemetry
     }
 
     /// What tapping a row does. Kept as data so the row list is testable without a router.
@@ -55,17 +55,30 @@ struct SettingsFormatter: Sendable {
     /// see the security rules in the architecture docs.
     static let appStoreBillingURL = URL(string: "https://apps.apple.com/account/billing")!
 
+    /// Plain-language rendering of `SyncState` for the Settings row.
+    static func describe(_ state: SyncState) -> String {
+        switch state {
+        case .idle(let lastSyncedAt):
+            guard let lastSyncedAt else { return "On" }
+            return "On · \(lastSyncedAt.formatted(date: .abbreviated, time: .shortened))"
+        case .syncing: return "Syncing…"
+        case .failed(let message, _): return message
+        case .unavailable(let reason): return reason
+        }
+    }
+
     func makeModel(
         authState: AuthState,
         unitSystem: UnitSystem,
-        telemetryEnabled: Bool
+        telemetryEnabled: Bool,
+        syncState: SyncState
     ) -> SettingsPresentationModel {
         SettingsPresentationModel(
             title: "Settings",
             sections: [
                 .init(title: "ACCOUNT", rows: accountRows(authState: authState)),
                 .init(title: "PREFERENCES", rows: preferenceRows(unitSystem: unitSystem)),
-                .init(title: "DATA", rows: dataRows()),
+                .init(title: "DATA", rows: dataRows(syncDescription: Self.describe(syncState))),
                 .init(title: "ABOUT", rows: aboutRows())
             ]
         )
@@ -116,11 +129,14 @@ struct SettingsFormatter: Sendable {
         ]
     }
 
-    private func dataRows() -> [SettingsPresentationModel.Row] {
+    private func dataRows(syncDescription: String) -> [SettingsPresentationModel.Row] {
         [
+            // A switch here would be a lie: mirroring is configured when the store opens,
+            // and whether it works depends on the device's iCloud account. So the row
+            // reports the truth instead of pretending to control it.
             .init(
                 id: "icloud", symbolName: "icloud", title: "iCloud sync",
-                trailing: .toggle(.iCloudSync), action: .inert
+                trailing: .value(syncDescription), action: .inert
             ),
             .init(
                 id: "export", symbolName: "square.and.arrow.down", title: "Export as PDF",

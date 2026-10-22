@@ -97,6 +97,10 @@ extension DS {
         /// Inter Bold 9 / 13.5 — "BEST" flag.
         static let flag = Font.system(size: 9, weight: .bold)
 
+        /// Inter Bold 42 / 52.5, tracking −1.05 — splash title.
+        static let splash = Font.system(size: 42, weight: .bold)
+        static let splashTracking: CGFloat = -1.05
+
         /// Inter Bold 28 / 35, tracking −0.7 — AI tab hero title.
         static let aiHero = Font.system(size: 28, weight: .bold)
         static let aiHeroTracking: CGFloat = -0.7
@@ -178,6 +182,8 @@ extension DS {
         static let surfaceRadius: CGFloat = 24
         static let chipRadius: CGFloat = 13.25
         static let hairlineWidth: CGFloat = 1
+        /// Primary and secondary capsule buttons.
+        static let buttonHeight: CGFloat = 56
     }
 }
 

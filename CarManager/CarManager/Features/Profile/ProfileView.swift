@@ -207,7 +207,7 @@ struct ProfileView: View {
                 .accessibilityIdentifier("profileSignOut")
         } else {
             Button("Sign in") {
-                model?.router.presentFullScreen(.authentication(.signIn))
+                model?.router.presentFullScreen(.authentication)
             }
             .font(DS.Text.rowTitle)
             .foregroundStyle(DS.Colors.accent)

@@ -48,7 +48,7 @@ public extension AppRoute {
 public extension ModalRoute {
     var requirements: RouteRequirements {
         switch self {
-        case .quickLog, .vehiclePicker, .paywall, .legal, .forgotPassword,
+        case .quickLog, .vehiclePicker, .paywall, .legal,
              .disclaimerAcknowledgement, .vehicleEditor:
             .none
         // Gating happens before the file is produced, so presenting it needs nothing.

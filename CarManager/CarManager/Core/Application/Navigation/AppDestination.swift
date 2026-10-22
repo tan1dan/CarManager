@@ -61,10 +61,6 @@ public enum CameraPurpose: String, Hashable, Codable, Sendable {
     case receipt, dashboard, damage, plate, vehiclePhoto
 }
 
-public enum AuthEntryPoint: String, Hashable, Codable, Sendable {
-    case signIn, signUp
-}
-
 /// Why the paywall appeared. A context-free paywall is a wasted paywall — and this lets
 /// conversion be attributed per trigger.
 public enum PaywallContext: Hashable, Codable, Sendable {
@@ -129,7 +125,6 @@ public enum ModalRoute: Hashable, Codable, Sendable, Identifiable {
     case legal(LegalDocument)
     /// Hands a generated file to the system share sheet.
     case shareExport(URL)
-    case forgotPassword
     case disclaimerAcknowledgement(DisclaimerKind)
 
     public var id: Self { self }
@@ -138,7 +133,7 @@ public enum ModalRoute: Hashable, Codable, Sendable, Identifiable {
 /// Full-screen covers. Immersive or blocking flows, isolated from the navigation stack.
 public enum FullScreenRoute: Hashable, Codable, Sendable, Identifiable {
     case onboarding
-    case authentication(AuthEntryPoint)
+    case authentication
     case camera(CameraPurpose)
     case documentViewer(DocumentID)
 

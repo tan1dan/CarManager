@@ -15,6 +15,15 @@ struct AuthenticationRoutingTests {
         #expect(decision == .redirect(.fullScreen(.onboarding)))
     }
 
+    @Test("The welcome screen can open sign-in before onboarding completes")
+    func authReachableDuringOnboarding() {
+        let guardian = RouteGuard()
+        let decision = guardian.evaluate(
+            .fullScreen(.authentication), context: .make(onboardingCompleted: false)
+        )
+        #expect(decision != .redirect(.fullScreen(.onboarding)))
+    }
+
     @Test("Onboarding itself is reachable while onboarding is incomplete")
     func onboardingReachable() {
         let decision = RouteGuard().evaluate(
@@ -28,7 +37,7 @@ struct AuthenticationRoutingTests {
         let decision = RouteGuard().evaluate(
             .tab(.ai, path: [.aiChat(nil)]), context: .make(auth: .anonymous)
         )
-        #expect(decision == .redirect(.fullScreen(.authentication(.signIn))))
+        #expect(decision == .redirect(.fullScreen(.authentication)))
     }
 
     @Test("An anonymous user can still use the whole local garage")
@@ -50,11 +59,11 @@ struct AuthenticationRoutingTests {
 
         router.navigate(to: target)
         #expect(router.pendingDestination == target)
-        #expect(router.fullScreen == .authentication(.signIn))
+        #expect(router.fullScreen == .authentication)
 
         // Simulate a successful sign-in.
         let signedIn = makeRouter(context: .make(
-            auth: .authenticated(UserProfile(authProvider: .email, createdAt: Date())),
+            auth: .authenticated(UserProfile(authProvider: .apple, createdAt: Date())),
             entitlement: .premium(now: FixedClock().now)
         ))
         signedIn.navigate(to: target)
@@ -108,7 +117,7 @@ struct PremiumRoutingTests {
         let decision = RouteGuard().evaluate(
             .tab(.ai, path: [.aiChat(nil)]),
             context: .make(
-                auth: .authenticated(UserProfile(authProvider: .email, createdAt: now)),
+                auth: .authenticated(UserProfile(authProvider: .apple, createdAt: now)),
                 entitlement: .free,
                 usage: .exhausted(now: now)
             )

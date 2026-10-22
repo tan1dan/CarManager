@@ -19,6 +19,11 @@ struct RootView: View {
                 // Sheets are presented from the router, never from a view's own @State.
                 // ModalHost walks the router's modal stack so sheets can genuinely stack.
                 .modifier(ModalHost(depth: 0))
+                // Getting in by signing in finishes onboarding; backing out of the auth flow
+                // leaves the user on the welcome screen.
+                .onChange(of: model.auth.state.isAuthenticated) { _, isAuthenticated in
+                    if isAuthenticated { model.onboarding.complete() }
+                }
         } else {
             ProgressView()
         }
@@ -41,11 +46,14 @@ struct RootView: View {
     }
 }
 
+/// Shown while the session is restored — the splash without its buttons, so launch does
+/// not flash a white screen before the dark app.
 struct LaunchPlaceholderView: View {
     var body: some View {
-        VStack(spacing: 12) {
-            ProgressView()
-            Text("Launching")
+        ZStack {
+            SplashBackground()
+            SplashBrand()
         }
+        .environment(\.colorScheme, .dark)
     }
 }

@@ -353,3 +353,69 @@ and period test deterministic — it is the single highest-leverage seam in the 
 - *Deferring tests until after the MVP.* **Rejected:** the fuel algorithm, the reminder matrix and the
   receipt-confirmation flow are exactly the things that must be right on day one, and they are the
   cheapest things in the app to test.
+
+## ADR-014 — Account identity is Sign in with Apple, and nothing else
+
+**Decision.** The app has **one** way into an account: **Sign in with Apple**, native, via
+`SignInWithAppleButton`. There is no email/password, no verification codes, no password
+recovery and no third-party auth service. Apple's user identifier plus the name and email it
+hands over once are stored in the **Keychain** (`ThisDeviceOnly`); every launch re-checks the
+authorization with `ASAuthorizationAppleIDProvider.getCredentialState`, so an access revoked in
+Settings signs the user out. `AppleAuthProvider` (Infrastructure) is the only type that touches
+AuthenticationServices; Domain and Application still see `AuthProviding` alone.
+
+**Reason.** The garage lives in the user's iCloud (A-03/A-05), so the account exists only to
+identify the person for AI quota, support and subscription restore. An email/password service
+bought nothing for that and cost a vendor, a configuration file, email templates, an SMTP
+provider and four screens.
+
+**Consequences.**
+
+- The welcome screen's two buttons collapse into one: with Apple there is no difference
+  between registering and signing in.
+- `AuthProviding` loses sign-up, code confirmation and password reset; `PasswordPolicy`,
+  `AuthValidator` and `ModalRoute.forgotPassword` are gone.
+- The app ID needs the **Sign in with Apple** capability (`CarManager.entitlements`), and the
+  Apple Developer account must have it enabled for `IvanZnak.CarManager`.
+- The name and email arrive **only on the first authorization**, so they are persisted on
+  first sign-in and never overwritten with nothing afterwards.
+- Account deletion cannot revoke the Apple authorization — only the user can, in Settings.
+  "Delete account" therefore means: forget the identity on this device and delete the data,
+  which belongs to the CloudKit layer.
+- Anything server-side (the AI proxy) must verify the Apple **identity token**, not a user
+  identifier sent by the client: the identifier is not a credential.
+
+**Alternatives considered.** Amazon Cognito and then Supabase Auth — both implemented and both
+removed: a dependency, a configuration file and an email pipeline for an account that only
+needs to say "this is the same person". Email/password on our own backend: the same cost plus
+password storage.
+
+## ADR-015 — A flat SwiftData schema, mapped by hand
+
+**Decision.** The CloudKit-mirrored store uses **no SwiftData relationships**: every row holds
+the same `UUID` foreign keys the domain uses (`vehicleID`, …), and cascades are written out in
+`PersistenceActor.deleteVehicle`. Complex values — `Money`, `RecordSource`, `ReminderTrigger`,
+service items, chat messages — are stored as **JSON `Data`**; only scalars become columns.
+`@Model` classes never leave `Core/Data`; repositories map to domain value types.
+
+**Reason.** CloudKit mirroring forbids unique constraints, requires every attribute to be
+optional or defaulted, and requires relationships to be optional with inverses. A flat schema
+sidesteps all three, and keeps the CloudKit record types to plain fields, which is what makes
+the schema safe to extend later. Mapping by hand costs one file and makes every storage
+decision greppable.
+
+**Consequences.**
+
+- Uniqueness of a domain id is enforced in `upsert` (fetch, then insert or update), not by the
+  store. Two devices creating the same id is not a real scenario: ids are UUIDs.
+- Filters that need to look inside a JSON blob (service item types, `OdometerSource`) run in
+  memory after a narrowing fetch by vehicle. Measured on the data volumes this app has — tens
+  to hundreds of rows per vehicle — this is not worth a second column.
+- JSON decode failures fall back to a sane default instead of throwing, so a row written by a
+  newer build cannot crash an older one.
+- `ScanRepository` is deliberately NOT persisted: a receipt scan exists only until the user
+  confirms or discards it, which is what keeps "never save extracted data without
+  confirmation" true by construction.
+- Sync is reported, not controlled: `CloudKitSyncStatusProvider` combines the mode the store
+  opened in with `CKContainer.accountStatus()`, and Settings shows that instead of a switch
+  that cannot actually turn mirroring off.

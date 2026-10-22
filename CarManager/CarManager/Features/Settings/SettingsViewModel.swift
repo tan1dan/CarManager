@@ -14,6 +14,7 @@ final class SettingsViewModel {
     private let featureGate: FeatureGate
     private let exportPDF: ExportVehicleHistoryPDF
     private let router: AppRouter
+    private let syncStore: SyncStatusStore
 
     init(
         formatter: SettingsFormatter,
@@ -21,7 +22,8 @@ final class SettingsViewModel {
         authStore: AuthSessionStore,
         featureGate: FeatureGate,
         exportPDF: ExportVehicleHistoryPDF,
-        router: AppRouter
+        router: AppRouter,
+        syncStore: SyncStatusStore
     ) {
         self.formatter = formatter
         self.preferences = preferences
@@ -29,6 +31,13 @@ final class SettingsViewModel {
         self.featureGate = featureGate
         self.exportPDF = exportPDF
         self.router = router
+        self.syncStore = syncStore
+        refresh()
+    }
+
+    /// Asks CloudKit for the current account state, then rebuilds the rows.
+    func load() async {
+        await syncStore.refresh()
         refresh()
     }
 
@@ -36,7 +45,8 @@ final class SettingsViewModel {
         presentation = formatter.makeModel(
             authState: authStore.state,
             unitSystem: preferences.unitSystem,
-            telemetryEnabled: preferences.telemetryEnabled
+            telemetryEnabled: preferences.telemetryEnabled,
+            syncState: syncStore.state
         )
     }
 

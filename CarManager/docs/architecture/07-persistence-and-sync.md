@@ -1,3 +1,7 @@
+> **Status (implemented).** SwiftData + CloudKit private-database mirroring is live — see
+> `Core/Data/SwiftData/`. The schema is flat and mapped by hand (ADR-015). Repositories
+> keep returning domain value types, so nothing above `Core/Data` changed.
+
 # 07 · Persistence, Offline-First, Cloud Sync
 
 ---

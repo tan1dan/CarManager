@@ -191,7 +191,7 @@ struct AINavigationTests {
     @Test("Every AI hub action maps to a destination")
     func aiHubDestinations() {
         let premium = RouteGuard.Context.make(
-            auth: .authenticated(UserProfile(authProvider: .email, createdAt: clock.now)),
+            auth: .authenticated(UserProfile(authProvider: .apple, createdAt: clock.now)),
             entitlement: .premium(now: clock.now),
             disclaimers: [AIDisclaimer.dashboard.version, AIDisclaimer.damage.version]
         )

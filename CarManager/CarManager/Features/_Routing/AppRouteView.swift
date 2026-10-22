@@ -88,7 +88,6 @@ struct ModalRouteView: View {
         case .receiptReview(let id): NavigationStack { ReceiptReviewView(scanID: id) }
         case .legal(let document): LegalView(document: document)
         case .shareExport(let url): ShareExportView(url: url)
-        case .forgotPassword: NavigationStack { ForgotPasswordView() }
         case .disclaimerAcknowledgement(let kind): DisclaimerAcknowledgementView(kind: kind)
         }
     }
@@ -102,7 +101,7 @@ struct FullScreenRouteView: View {
     var body: some View {
         switch route {
         case .onboarding: OnboardingView()
-        case .authentication(let entry): AuthenticationFlowView(entryPoint: entry)
+        case .authentication: AppleSignInView()
         case .camera(let purpose): CameraFlowView(purpose: purpose)
         case .documentViewer(let id): DocumentPreviewView(documentID: id)
         }

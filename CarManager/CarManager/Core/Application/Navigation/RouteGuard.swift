@@ -40,9 +40,21 @@ public struct RouteGuard: Sendable {
 
     public init() {}
 
+    static func isReachableDuringOnboarding(_ destination: AppDestination) -> Bool {
+        switch destination.fullScreen {
+        case .onboarding?, .authentication?: return true
+        default: break
+        }
+        switch destination.modal {
+        case .legal?: return true
+        default: return false
+        }
+    }
+
     public func evaluate(_ destination: AppDestination, context: Context) -> Decision {
-        // 1. Onboarding blocks everything else.
-        if !context.isOnboardingCompleted, destination.fullScreen != .onboarding {
+        // 1. Onboarding blocks everything else — except what the welcome screen itself opens:
+        //    the auth flow and the legal documents it links to.
+        if !context.isOnboardingCompleted, !Self.isReachableDuringOnboarding(destination) {
             return .redirect(.fullScreen(.onboarding))
         }
 
@@ -117,6 +129,6 @@ private extension RouteRequirements {
 private extension RouteGuard.Decision {
     /// An anonymous user hitting an account-gated route gets the sign-in flow, not a paywall.
     func replacingAuthGate() -> RouteGuard.Decision {
-        .redirect(.fullScreen(.authentication(.signIn)))
+        .redirect(.fullScreen(.authentication))
     }
 }

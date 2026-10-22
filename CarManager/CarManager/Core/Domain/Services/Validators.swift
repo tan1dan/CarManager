@@ -72,23 +72,6 @@ public enum ServiceRecordValidator {
     }
 }
 
-public enum AuthValidator {
-    public static func validateSignIn(email: String, password: String) throws {
-        guard email.contains("@"), email.count >= 5 else {
-            throw DomainError.validation(.invalidEmail)
-        }
-        guard password.count >= 6 else { throw DomainError.validation(.weakPassword) }
-    }
-
-    public static func validateSignUp(_ registration: AuthRegistration) throws {
-        guard !registration.name.trimmingCharacters(in: .whitespaces).isEmpty else {
-            throw DomainError.validation(.emptyField(.name))
-        }
-        try validateSignIn(email: registration.email, password: registration.password)
-        guard registration.acceptedTerms else { throw DomainError.validation(.termsNotAccepted) }
-    }
-}
-
 public enum DocumentExpiryEvaluator {
     public static func status(
         for document: DocumentMetadata, now: Date, calendar: Calendar, leadDays: Int = 30
