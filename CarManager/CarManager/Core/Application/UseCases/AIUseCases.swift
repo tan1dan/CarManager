@@ -16,12 +16,19 @@ public struct AskAI: Sendable {
         self.buildContext = buildContext; self.clock = clock
     }
 
+    /// Matches the backend's limit, so a long message fails here instead of after a round trip.
+    public static let maxMessageLength = 4_000
+
     public struct Input: Sendable {
         public let conversationID: ConversationID?
         public let vehicleID: VehicleID?
         public let text: String
-        public init(conversationID: ConversationID?, vehicleID: VehicleID?, text: String) {
+        /// Ask again for a question that is already saved (its answer failed). The user message
+        /// is not stored a second time.
+        public let isRetry: Bool
+        public init(conversationID: ConversationID?, vehicleID: VehicleID?, text: String, isRetry: Bool = false) {
             self.conversationID = conversationID; self.vehicleID = vehicleID; self.text = text
+            self.isRetry = isRetry
         }
     }
 
@@ -37,6 +44,11 @@ public struct AskAI: Sendable {
             let task = Task {
                 do {
                     let now = clock.now
+                    let text = input.text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !text.isEmpty else { throw DomainError.validation(.emptyField(.title)) }
+                    guard text.count <= Self.maxMessageLength else {
+                        throw DomainError.ai(.messageTooLong(maxCharacters: Self.maxMessageLength))
+                    }
 
                     // Resolve or create the conversation.
                     let conversationID: ConversationID
@@ -45,7 +57,7 @@ public struct AskAI: Sendable {
                     } else {
                         let created = AIConversation(
                             vehicleID: input.vehicleID,
-                            title: String(input.text.prefix(40)),
+                            title: String(text.prefix(40)),
                             createdAt: now, updatedAt: now
                         )
                         try await conversations.create(created)
@@ -55,17 +67,25 @@ public struct AskAI: Sendable {
 
                     // The user message is persisted BEFORE the request — a crash or a cancel
                     // must never lose what the user typed.
-                    let userMessage = AIMessage(role: .user, text: input.text, createdAt: now)
-                    try await conversations.appendMessage(userMessage, to: conversationID)
-                    continuation.yield(.userMessageSaved(userMessage))
+                    if !(input.isRetry && input.conversationID != nil) {
+                        let userMessage = AIMessage(role: .user, text: text, createdAt: now)
+                        try await conversations.appendMessage(userMessage, to: conversationID)
+                        continuation.yield(.userMessageSaved(userMessage))
+                    }
 
-                    // A bounded snapshot, never raw rows. Absent for general questions.
+                    // The conversation remembers which car it is about; a new one takes the
+                    // car chosen for it. No car ("another car") means general advice.
+                    let stored = try await conversations.conversation(id: conversationID)
+                    let vehicleID = input.conversationID == nil ? input.vehicleID : stored?.vehicleID
+
+                    // A bounded snapshot, never raw rows. Absent for general questions — and when
+                    // the car has since been deleted.
                     var resolvedContext: AIVehicleContext?
-                    if let vehicleID = input.vehicleID {
+                    if let vehicleID {
                         resolvedContext = try? await buildContext(vehicleID: vehicleID)
                     }
 
-                    let history = try await conversations.conversation(id: conversationID)?.messages ?? []
+                    let history = stored?.messages ?? []
                     let request = AIChatRequest(
                         messages: history, context: resolvedContext, purpose: .chat
                     )

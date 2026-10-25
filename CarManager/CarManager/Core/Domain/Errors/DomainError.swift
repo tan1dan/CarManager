@@ -78,6 +78,17 @@ public enum AIError: Error, Sendable, Equatable {
     case requiresDisclaimerAcknowledgement(DisclaimerKind)
     case cancelled
     case transport(String)
+    /// The request took longer than the client allows.
+    case timedOut
+    /// HTTP 400 — the backend rejected the message itself.
+    case invalidRequest
+    /// HTTP 401/403 — the app is not allowed to call the assistant.
+    case unauthorized
+    /// HTTP 5xx — our function or the upstream model failed.
+    case serverError(status: Int)
+    /// The build carries no assistant endpoint (see `AIServiceConfiguration`).
+    case notConfigured
+    case messageTooLong(maxCharacters: Int)
 }
 
 public enum DocumentError: Error, Sendable, Equatable {

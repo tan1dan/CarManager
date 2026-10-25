@@ -12,7 +12,15 @@ final class AIChatViewModel {
     var composerText = ""
 
     private var conversationID: ConversationID?
-    private let vehicleID: VehicleID?
+    /// The car this conversation is about; `nil` is "another car" — general advice.
+    var vehicleID: VehicleID?
+    /// Garage cars to choose from, in garage order.
+    let vehicleOptions: [VehicleOption]
+
+    struct VehicleOption: Identifiable, Equatable {
+        let id: VehicleID
+        let name: String
+    }
     private let askAI: AskAI
     private let loadConversation: LoadConversation
     private let featureGate: FeatureGate
@@ -23,12 +31,14 @@ final class AIChatViewModel {
     private var streamTask: Task<Void, Never>?
 
     init(
-        conversationID: ConversationID?, vehicleID: VehicleID?, askAI: AskAI,
+        conversationID: ConversationID?, vehicleID: VehicleID?, vehicleOptions: [VehicleOption] = [], askAI: AskAI,
         loadConversation: LoadConversation, featureGate: FeatureGate,
         consumeQuota: @escaping () -> Void, router: AppRouter, clock: any ClockProviding
     ) {
         self.conversationID = conversationID
-        self.vehicleID = vehicleID
+        self.vehicleOptions = vehicleOptions
+        // Default to the current car, but only if it is still in the garage.
+        self.vehicleID = vehicleOptions.contains { $0.id == vehicleID } ? vehicleID : nil
         self.askAI = askAI
         self.loadConversation = loadConversation
         self.featureGate = featureGate
@@ -64,14 +74,24 @@ final class AIChatViewModel {
     }
 
     var canSend: Bool {
-        !composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming && !isLocked
+        !composerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && remainingCharacters >= 0
+            && !isStreaming && !isLocked
     }
 
-    /// Starters for an empty chat. Questions only — the answers come from the user's own data.
+    /// The car is fixed once the conversation has started, so answers never mix two cars.
+    var canChangeVehicle: Bool { conversationID == nil && messages.isEmpty && !isStreaming }
+
+    /// "Audi A4", "Another car", or "Removed car" when a conversation's car left the garage.
+    var vehicleTitle: String {
+        guard let vehicleID else { return "Another car" }
+        return vehicleOptions.first { $0.id == vehicleID }?.name ?? "Removed car"
+    }
+
+    /// Starters for an empty chat.
     let suggestions = [
-        "Why did my fuel consumption change?",
-        "What does the check engine light mean?",
-        "When is my next service due?"
+        "My engine cranks but won't start. What could it be?",
+        "What does a flashing check engine light mean?",
+        "Brakes squeal when I stop. Is it safe to drive?"
     ]
 
     // MARK: - Actions
@@ -80,35 +100,59 @@ final class AIChatViewModel {
         guard let conversationID, messages.isEmpty else { return }
         if let conversation = try? await loadConversation(id: conversationID) {
             messages = conversation.messages
+            vehicleID = conversation.vehicleID
         }
     }
+
+    /// The question whose answer failed. It is already saved, so Retry asks again without
+    /// adding it a second time.
+    private(set) var failedQuestion: String?
+    private var questionSaved = false
+
+    var remainingCharacters: Int { AskAI.maxMessageLength - composerText.trimmingCharacters(in: .whitespacesAndNewlines).count }
 
     func send(_ suggestion: String? = nil) {
         if let suggestion { composerText = suggestion }
         let text = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isStreaming else { return }
+        guard text.count <= AskAI.maxMessageLength else {
+            errorMessage = UserMessage.text(for: DomainError.ai(.messageTooLong(maxCharacters: AskAI.maxMessageLength)))
+            return
+        }
+        composerText = ""
+        ask(text, isRetry: false)
+    }
 
+    func retry() {
+        guard let question = failedQuestion, !isStreaming else { return }
+        ask(question, isRetry: true)
+    }
+
+    private func ask(_ text: String, isRetry: Bool) {
         // Gate FIRST: a locked feature short-circuits to the paywall with zero network calls.
         guard access.isAllowed else {
             if case .locked(let reason) = access {
                 router.present(.paywall(RouteGuard.paywallContext(for: .aiChat, reason: reason)))
             }
+            if !isRetry { composerText = text }
             return
         }
 
-        composerText = ""
         streamingText = ""
         errorMessage = nil
+        failedQuestion = nil
         isStreaming = true
+        questionSaved = isRetry
 
         streamTask = Task { [askAI, conversationID, vehicleID] in
             do {
-                let stream = askAI(AskAI.Input(conversationID: conversationID, vehicleID: vehicleID, text: text))
+                let stream = askAI(AskAI.Input(conversationID: conversationID, vehicleID: vehicleID, text: text, isRetry: isRetry))
                 for try await event in stream {
                     switch event {
                     case .conversationCreated(let id): self.conversationID = id
                     case .userMessageSaved(let message):
                         messages.append(message)
+                        questionSaved = true
                         consumeQuota()
                     // Deltas accumulate in memory only — never one write per token.
                     case .delta(let chunk): streamingText += chunk
@@ -123,6 +167,8 @@ final class AIChatViewModel {
                 isStreaming = false
                 if case DomainError.ai(.cancelled) = error { return }
                 errorMessage = UserMessage.text(for: error)
+                // Saved question → offer Retry; unsaved (e.g. storage failed) → give the text back.
+                if questionSaved { failedQuestion = text } else { composerText = text }
             }
         }
     }

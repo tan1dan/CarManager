@@ -97,7 +97,7 @@ public extension AppDependencies {
             scans: InMemoryScanRepository(store: scratch),
             auth: makeAuthProvider(clock: clock),
             subscriptions: makeSubscriptions(clock: clock),
-            ai: MockAIProvider(),
+            ai: makeAIProvider(),
             vision: OnDeviceVisionAnalysisProvider(vehicles: vehicles, clock: clock),
             textRecognizer: VisionTextRecognizer(),
             imagePreprocessor: JPEGImagePreprocessor(),
@@ -168,6 +168,13 @@ public extension AppDependencies {
 }
 
 extension AppDependencies {
+    /// The `car-assistant` Edge Function when Info.plist names it; otherwise a provider that
+    /// reports "not configured". Never the mock: a release build must not invent answers.
+    static func makeAIProvider() -> any AIProvider {
+        guard let configuration = AIServiceConfiguration.fromBundle() else { return UnconfiguredAIProvider() }
+        return SupabaseAIProvider(service: AIChatService(configuration: configuration))
+    }
+
     /// StoreKit is still a stub. `-debugPremium` (DEBUG only) starts as a subscriber so the
     /// Premium screens can be checked without going through the paywall each launch.
     static func makeSubscriptions(clock: any ClockProviding) -> any SubscriptionProviding {

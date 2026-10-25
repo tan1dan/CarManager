@@ -19,6 +19,7 @@ struct AIChatView: View {
                 viewModel = AIChatViewModel(
                     conversationID: conversationID,
                     vehicleID: model.selectedVehicleID,
+                    vehicleOptions: model.vehicles.summaries.map { .init(id: $0.id, name: $0.displayName) },
                     askAI: AskAI(
                         conversations: d.conversations, provider: d.ai,
                         buildContext: BuildAIContext(vehicles: d.vehicles, odometer: d.odometer, fuel: d.fuel,
@@ -59,9 +60,7 @@ private struct AIChatContentView: View {
                                 .accessibilityIdentifier("aiStreamingBubble")
                             stopButton
                         }
-                        if let error = viewModel.errorMessage {
-                            InfoBanner(symbol: "exclamationmark.triangle", text: error, tone: .danger)
-                        }
+                        if let error = viewModel.errorMessage { errorCard(error) }
                         if viewModel.limitResetsAt != nil { limitCard }
                         Color.clear.frame(height: 1).id("bottom")
                     }
@@ -88,11 +87,13 @@ private struct AIChatContentView: View {
                 .frame(width: 36, height: 36)
                 .background(Circle().fill(DS.Gradients.aiCard))
             VStack(alignment: .leading, spacing: 0) {
-                Text("AI Assistant").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white)
+                Text("AI Assistant").font(.system(size: 14, weight: .semibold)).foregroundStyle(.white).lineLimit(1)
                 Text(viewModel.status).font(DS.Text.statCaption).foregroundStyle(DS.Colors.textSecondary)
+                    .lineLimit(1).minimumScaleFactor(0.8)
                     .contentTransition(.opacity)
             }
-            Spacer()
+            Spacer(minLength: 8)
+            vehiclePicker
         }
         .padding(.horizontal, DS.Layout.gutter)
         .padding(.top, 12)
@@ -100,12 +101,54 @@ private struct AIChatContentView: View {
         .overlay(alignment: .bottom) { Rectangle().fill(DS.Colors.hairline).frame(height: 1) }
     }
 
+    /// Which car the conversation is about. A menu until the first message, a label after.
+    @ViewBuilder
+    private var vehiclePicker: some View {
+        let label = HStack(spacing: 6) {
+            Image(systemName: viewModel.vehicleID == nil ? "car.2" : "car.side")
+                .font(.system(size: 11, weight: .semibold))
+            Text(viewModel.vehicleTitle).font(.system(size: 12, weight: .semibold)).lineLimit(1)
+            if viewModel.canChangeVehicle {
+                Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 12)
+        .frame(height: 32)
+        .fixedSize()
+        .dsGlass(radius: 16)
+        // The car name matters more than the status line next to it.
+        .layoutPriority(1)
+
+        if viewModel.canChangeVehicle {
+            Menu {
+                Picker("Car", selection: $viewModel.vehicleID) {
+                    ForEach(viewModel.vehicleOptions) { Text($0.name).tag(Optional($0.id)) }
+                    Text("Another car").tag(VehicleID?.none)
+                }
+            } label: { label }
+            .accessibilityLabel("Car: \(viewModel.vehicleTitle)")
+            .accessibilityHint("Choose which car this conversation is about")
+            .accessibilityIdentifier("aiChatVehiclePicker")
+        } else {
+            label
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Car: \(viewModel.vehicleTitle)")
+        }
+    }
+
     private var intro: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Ask about your car")
+            Text(viewModel.vehicleID == nil ? "Ask about any car" : "Ask about your \(viewModel.vehicleTitle)")
                 .font(DS.Text.section).tracking(DS.Text.sectionTracking).foregroundStyle(.white)
-            Text("Answers use your own fuel, service and expense records. For anything safety-critical, check with a mechanic.")
+            // The assistant sees this conversation, not the vehicle records.
+            Text(viewModel.vehicleID == nil
+                 ? "Advice will be general. Mention the make, model and year if you want it more specific. The assistant remembers this conversation."
+                 : "The assistant knows the model, year, fuel and mileage — never the VIN or plate — and remembers this conversation.")
                 .font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
+            InfoBanner(symbol: "exclamationmark.triangle",
+                       text: "AI suggestions are not a diagnosis. If something affects brakes, steering or a warning light is flashing, stop safely and have the car inspected.",
+                       tone: .warning)
             ForEach(viewModel.suggestions, id: \.self) { suggestion in
                 Button { viewModel.send(suggestion) } label: {
                     HStack {
@@ -121,6 +164,33 @@ private struct AIChatContentView: View {
             }
         }
         .padding(.top, 8)
+    }
+
+    private func errorCard(_ message: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle").foregroundStyle(DS.Colors.danger)
+                Text(message).font(DS.Text.caption).foregroundStyle(.white.opacity(0.85))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if viewModel.failedQuestion != nil {
+                Button(action: viewModel.retry) {
+                    Label("Retry", systemImage: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14).frame(height: 32)
+                        .background(Capsule().fill(DS.Colors.accent))
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Asks the same question again")
+                .accessibilityIdentifier("aiChatRetry")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(RoundedRectangle(cornerRadius: 16).fill(DS.Colors.danger.opacity(0.1))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(DS.Colors.danger.opacity(0.25))))
+        .accessibilityElement(children: .contain)
     }
 
     private var stopButton: some View {
@@ -187,7 +257,15 @@ private struct AIChatContentView: View {
                         .focused($composerFocused)
                         .submitLabel(.send)
                         .onSubmit { viewModel.send() }
+                        .accessibilityLabel("Message to the assistant")
                         .accessibilityIdentifier("aiChatComposer")
+                    // The backend takes up to 4000 characters; warn before that, not after.
+                    if viewModel.remainingCharacters < 200 {
+                        Text("\(viewModel.remainingCharacters)")
+                            .font(DS.Text.statCaption).monospacedDigit()
+                            .foregroundStyle(viewModel.remainingCharacters < 0 ? DS.Colors.danger : DS.Colors.textSecondary)
+                            .accessibilityLabel("\(viewModel.remainingCharacters) characters left")
+                    }
                     Button { viewModel.send() } label: {
                         Image(systemName: "arrow.up")
                             .font(.system(size: 15, weight: .bold))

@@ -454,3 +454,37 @@ user chooses to.
 
 **Alternatives considered.** A guest mode limited to one vehicle, migrated on sign-in — rejected
 for the migration and duplicate-data risk above.
+
+---
+
+## ADR-017 — AI chat goes through the `car-assistant` Supabase Edge Function
+
+**Decision.** `SupabaseAIProvider` (Infrastructure) adapts the existing `AIProvider` port to
+`AIChatService`, a plain `URLSession` client for `POST /functions/v1/car-assistant` with body
+`{"message": …}` and response `{"answer": …}`. The project URL and publishable key are read from
+`CarManager-Info.plist` (`SupabaseURL`, `SupabasePublishableKey`); without them the app wires
+`UnconfiguredAIProvider`, which fails with "not configured" — never a mock answer. The OpenAI key
+exists only as the function's `OPENAI_API_KEY` secret.
+
+Only the newest user message is sent: the function takes no history, no streaming and no vehicle
+context. `AskAI` still stores the conversation in iCloud, and a failed answer is retried with
+`isRetry: true`, which re-asks without storing the question twice. Requests are never retried
+automatically — each one costs an OpenAI call.
+
+**Current backend authorisation (measured 2026-10-25).** The function rejects a request with no
+key (`401 UNAUTHORIZED_NO_AUTH_HEADER`) but accepts the publishable key alone in `apikey`. That key
+ships inside the app and is public by design, so today anyone can call the function and spend the
+OpenAI budget. Acceptable for development, not for release.
+
+**Required before release (smallest secure change).**
+
+1. Supabase → Auth → Providers → **Apple**: enable it, client ID `IvanZnak.CarManager`.
+2. The app exchanges the Apple identity token it already receives for a Supabase session
+   (`POST /auth/v1/token?grant_type=id_token`, provider `apple`, with the sign-in nonce), keeps
+   the refresh token in the Keychain, and passes the access token through
+   `AIChatService(accessToken:)` as `Authorization: Bearer …` — the hook is already there.
+3. The function verifies that JWT (`supabase.auth.getUser`) and rejects requests without a user,
+   then rate-limits per user id (e.g. an `ai_usage` table keyed by user and day), which also makes
+   the daily free quota server-authoritative.
+
+Data still lives in the user's iCloud; Supabase only vouches for "this is a signed-in Apple user".
