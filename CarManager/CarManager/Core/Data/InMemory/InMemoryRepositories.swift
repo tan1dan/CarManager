@@ -44,6 +44,10 @@ struct InMemoryVehicleRepository: VehicleRepository {
             store.serviceRecords = store.serviceRecords.filter { $0.value.vehicleID != id }
             store.expenses = store.expenses.filter { $0.value.vehicleID != id }
             store.reminders = store.reminders.filter { $0.value.vehicleID != id }
+            for (key, analysis) in store.damageAnalyses where analysis.vehicleID == id {
+                orphaned += analysis.imageRefs
+                store.damageAnalyses.removeValue(forKey: key)
+            }
             store.documents = store.documents.filter { $0.value.vehicleID != id }
             store.insights = store.insights.filter { $0.value.vehicleID != id }
             // Nullify, not cascade: a chat is a user asset and outlives the car it discussed.
@@ -95,7 +99,8 @@ struct InMemoryFuelRepository: FuelRepository {
     func entries(vehicleID: VehicleID) async throws -> [FuelEntry] {
         await store.fuelEntries.values
             .filter { $0.vehicleID == vehicleID }
-            .sorted { $0.date > $1.date }
+            // Two fill-ups on the same day: the higher odometer is the later one.
+            .sorted { ($0.date, $0.odometer.kilometers) > ($1.date, $1.odometer.kilometers) }
     }
 
     /// Ascending by (odometer, date) — the ordering the segmentation algorithm requires.
@@ -349,4 +354,16 @@ struct InMemoryScanRepository: ScanRepository {
     func dashboardScan(id: DashboardScanID) async throws -> DashboardScan? { await store.dashboardScans[id] }
     func insert(_ analysis: DamageAnalysis) async throws { await store.mutate { $0.damageAnalyses[analysis.id] = analysis } }
     func damageAnalysis(id: DamageAnalysisID) async throws -> DamageAnalysis? { await store.damageAnalyses[id] }
+    func dashboardScans(vehicleID: VehicleID?) async throws -> [DashboardScan] {
+        await store.dashboardScans.values.filter { vehicleID == nil || $0.vehicleID == vehicleID }.sorted { $0.createdAt > $1.createdAt }
+    }
+    func damageAnalyses(vehicleID: VehicleID?) async throws -> [DamageAnalysis] {
+        await store.damageAnalyses.values.filter { vehicleID == nil || $0.vehicleID == vehicleID }.sorted { $0.createdAt > $1.createdAt }
+    }
+    func deleteDashboardScan(id: DashboardScanID) async throws -> [FileRef] {
+        await store.mutate { $0.dashboardScans.removeValue(forKey: id).map { [$0.imageRef] } ?? [] }
+    }
+    func deleteDamageAnalysis(id: DamageAnalysisID) async throws -> [FileRef] {
+        await store.mutate { $0.damageAnalyses.removeValue(forKey: id)?.imageRefs ?? [] }
+    }
 }

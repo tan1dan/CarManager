@@ -7,6 +7,7 @@ import SwiftUI
 struct AIHubView: View {
     @Environment(\.appModel) private var model
     @State private var viewModel: AIHubViewModel?
+    @State private var scans: ScanHistoryViewModel?
 
     private enum Metrics {
         static let heroPadding: CGFloat = 24
@@ -26,6 +27,7 @@ struct AIHubView: View {
                     hero
                     toolGrid
                     recentChats
+                    recentScans
                 }
                 .padding(.horizontal, DS.Layout.gutter)
                 .padding(.top, 16)
@@ -36,7 +38,15 @@ struct AIHubView: View {
         .toolbar(.hidden, for: .navigationBar)
         // `.task` runs once per identity; `onAppear` also fires when a chat is popped, so a
         // conversation started there shows up here without a manual refresh.
-        .onAppear { Task { await load() } }
+        .onAppear {
+            Task { await load() }
+            if scans == nil, let model { scans = .make(model, limit: 3) }
+            Task { await scans?.load() }
+        }
+        // A scan made just now (in the full-screen camera) shows up as soon as it closes.
+        .onChange(of: model?.router.fullScreen) { _, cover in
+            if cover == nil { Task { await scans?.load() } }
+        }
     }
 
     // MARK: - Sections
@@ -198,6 +208,31 @@ struct AIHubView: View {
                 .foregroundStyle(DS.Colors.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
+        }
+    }
+
+    /// Hidden until there is something to show — the tool tiles above are the way in.
+    @ViewBuilder
+    private var recentScans: some View {
+        if case .loaded(let rows) = scans?.state {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("RECENT SCANS")
+                        .font(DS.Text.eyebrowSmall)
+                        .tracking(DS.Text.eyebrowSmallTracking)
+                        .foregroundStyle(Color.white.opacity(0.4))
+                    Spacer()
+                    Button("See all") { model?.router.push(.scanHistory, in: .ai) }
+                        .font(DS.Text.eyebrowSmall)
+                        .foregroundStyle(DS.Colors.accent)
+                        .accessibilityIdentifier("aiScanHistory")
+                }
+                RowGroup(items: rows) { row in
+                    Button { model?.router.push(row.route, in: .ai) } label: { ScanHistoryRowView(row: row) }
+                        .buttonStyle(.plain)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

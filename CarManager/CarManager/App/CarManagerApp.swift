@@ -3,6 +3,8 @@ import SwiftUI
 @main
 struct CarManagerApp: App {
     @State private var model: AppModel
+    @State private var changes = PersistenceChangeObserver()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // The object graph is composed exactly once, here.
@@ -18,6 +20,7 @@ struct CarManagerApp: App {
                 .onOpenURL { url in model.router.handle(url: url) }
                 .task {
                     await model.bootstrap()
+                    changes.start { [model] in await model.vehicles.refresh() }
                     #if DEBUG
                     // `-openURL carmanager://…` opens a screen directly, without the system
                     // "Open in CarManager?" prompt that `simctl openurl` triggers.
@@ -27,6 +30,10 @@ struct CarManagerApp: App {
                         model.router.handle(url: url)
                     }
                     #endif
+                }
+                // Coming back to the app may follow edits made on another device.
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { Task { await model.vehicles.refresh() } }
                 }
         }
     }

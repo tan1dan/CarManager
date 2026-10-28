@@ -64,8 +64,10 @@ struct DamageResultContentView: View {
                     ScanHeroImage(imageData: imageData, symbol: "camera", badge: "ANALYSED")
                     VStack(alignment: .leading, spacing: 2) {
                         Text(headline).font(.system(size: 17, weight: .bold)).foregroundStyle(.white)
-                        Text("\(analysis.findings.count) finding\(analysis.findings.count == 1 ? "" : "s") from this photo")
+                        Text(analysis.summary.flatMap { $0.isEmpty ? nil : $0 }
+                             ?? "\(analysis.findings.count) finding\(analysis.findings.count == 1 ? "" : "s") from this photo")
                             .font(DS.Text.subheadlineRegular).foregroundStyle(DS.Colors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     VStack(spacing: 8) {
@@ -73,7 +75,8 @@ struct DamageResultContentView: View {
                         ForEach(Array(analysis.findings.enumerated()), id: \.offset) { _, finding in
                             FindingCard(symbol: finding.severity == .structural ? "exclamationmark.octagon" : "wrench.adjustable",
                                         tone: tone(finding.severity), title: finding.damageType,
-                                        subtitle: subtitle(finding))
+                                        subtitle: subtitle(finding),
+                                        detail: finding.cosmeticRepairPossible == true ? "A cosmetic repair is likely enough" : nil)
                         }
                     }
                     InfoBanner(symbol: "info.circle",
@@ -88,7 +91,8 @@ struct DamageResultContentView: View {
     }
 
     private var headline: String {
-        switch worst {
+        if analysis.findings.isEmpty { return "No damage found" }
+        return switch worst {
         case .cosmetic: "Cosmetic damage"
         case .moderate: "Moderate damage"
         case .structural: "Possible structural damage"
@@ -113,10 +117,34 @@ struct DamageResultContentView: View {
     }
 }
 
+/// A saved damage analysis, opened from history.
 struct DamageResultView: View {
     let analysisID: DamageAnalysisID
     @Environment(\.appModel) private var model
+    @State private var loaded: (DamageAnalysis, Data?)?
+    @State private var missing = false
+
     var body: some View {
-        VStack { PushedHeader(title: "Damage analysis", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        Group {
+            if let (analysis, image) = loaded {
+                DamageResultContentView(analysis: analysis, imageData: image) { model?.router.pop() }
+            } else if missing {
+                VStack {
+                    PushedHeader(title: "Damage analysis", onBack: { model?.router.pop() })
+                    EmptyStateView(symbol: "trash", title: "Analysis not found", message: "It may have been deleted on another device.")
+                    Spacer()
+                }
+            } else {
+                ProgressView().tint(DS.Colors.textSecondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .dsScreen()
+        .task {
+            guard loaded == nil, let model else { return }
+            let d = model.dependencies
+            guard let analysis = try? await d.scans.damageAnalysis(id: analysisID) else { missing = true; return }
+            let image: Data? = if let ref = analysis.imageRefs.first { try? await d.files.read(ref) } else { nil }
+            loaded = (analysis, image)
+        }
     }
 }

@@ -57,6 +57,17 @@ final class RemindersViewModel {
     }
 
     func present(_ evaluations: [ReminderEvaluation]) -> RemindersPresentation {
+        ReminderPresenter(format: format, clock: clock).present(evaluations)
+    }
+}
+
+/// Turns reminder evaluations into display text. Shared by the Reminders list and the
+/// reminder detail screen so both say the same thing.
+struct ReminderPresenter {
+    let format: DisplayFormat
+    let clock: any ClockProviding
+
+    func present(_ evaluations: [ReminderEvaluation]) -> RemindersPresentation {
         let now = clock.now
         let ranked = evaluations
             .map { (evaluation: $0, fraction: fraction(for: $0, now: now)) }
@@ -77,9 +88,7 @@ final class RemindersViewModel {
         return RemindersPresentation(nextUp: ranked.first.map { nextUp($0.evaluation, fraction: $0.fraction, now: now) }, rows: rows)
     }
 
-    // MARK: - Pieces
-
-    private static func urgency(_ status: ReminderStatus) -> Int {
+    static func urgency(_ status: ReminderStatus) -> Int {
         switch status {
         case .overdue: 3
         case .due: 2
@@ -88,7 +97,7 @@ final class RemindersViewModel {
         }
     }
 
-    private func tone(_ status: ReminderStatus, fraction: Double) -> Tone {
+    func tone(_ status: ReminderStatus, fraction: Double) -> Tone {
         switch status {
         case .overdue, .due: .danger
         case .upcoming(let days) where days != nil: .warning
@@ -99,7 +108,7 @@ final class RemindersViewModel {
 
     /// How much of the interval is used up. Mileage uses the evaluator's figure; a date
     /// reminder runs from its last completion (or creation) to the due date.
-    private func fraction(for evaluation: ReminderEvaluation, now: Date) -> Double {
+    func fraction(for evaluation: ReminderEvaluation, now: Date) -> Double {
         if let progress = evaluation.progress { return progress.fraction }
         guard case .date(let trigger) = evaluation.reminder.trigger else { return 0 }
         let start = periodStart(evaluation.reminder, due: trigger.dueDate)
@@ -110,7 +119,7 @@ final class RemindersViewModel {
 
     /// Where the current period began: the last completion, else one recurrence interval
     /// before the due date, else when the reminder was created.
-    private func periodStart(_ reminder: Reminder, due: Date) -> Date {
+    func periodStart(_ reminder: Reminder, due: Date) -> Date {
         if let completed = reminder.lastCompletedAt { return completed }
         let back: DateComponents? = switch reminder.recurrence {
         case .everyMonths(let n), .both(let n, _): DateComponents(month: -n)
@@ -121,14 +130,14 @@ final class RemindersViewModel {
         return reminder.createdAt
     }
 
-    private func dueDate(_ reminder: Reminder) -> Date? {
+    func dueDate(_ reminder: Reminder) -> Date? {
         switch reminder.trigger {
         case .date(let t), .whicheverFirst(let t, _): t.dueDate
         case .mileage: nil
         }
     }
 
-    private func nextUp(_ evaluation: ReminderEvaluation, fraction: Double, now: Date) -> RemindersPresentation.NextUp {
+    func nextUp(_ evaluation: ReminderEvaluation, fraction: Double, now: Date) -> RemindersPresentation.NextUp {
         let reminder = evaluation.reminder
         var parts: [String] = []
         switch evaluation.status {

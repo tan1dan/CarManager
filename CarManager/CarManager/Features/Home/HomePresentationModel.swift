@@ -111,7 +111,6 @@ struct HomeFormatter: Sendable {
         return .init(
             name: vehicle.displayName,
             subtitle: subtitleParts.joined(separator: " · "),
-            // The health score is a Phase-6 calculator; no chip until it exists.
             statusChip: nil,
             stats: [
                 .init(
@@ -125,8 +124,7 @@ struct HomeFormatter: Sendable {
                     caption: "NEXT SVC",
                     value: nextServiceDistance(dashboard).map(distanceValue),
                     unit: distanceUnit
-                ),
-                .init(caption: "HEALTH", value: nil, unit: "%")
+                )
             ]
         )
     }

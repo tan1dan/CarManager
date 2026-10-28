@@ -5,32 +5,23 @@ import Observation
 @Observable
 final class SettingsViewModel {
     private(set) var presentation: SettingsPresentationModel = .placeholder
-    /// Transient feedback shown under the list (export result, gate refusal).
+    /// Transient feedback shown under the list.
     private(set) var message: String?
 
     private let formatter: SettingsFormatter
     private let preferences: any PreferencesProviding
     private let authStore: AuthSessionStore
-    private let featureGate: FeatureGate
-    private let exportPDF: ExportVehicleHistoryPDF
-    private let router: AppRouter
     private let syncStore: SyncStatusStore
 
     init(
         formatter: SettingsFormatter,
         preferences: any PreferencesProviding,
         authStore: AuthSessionStore,
-        featureGate: FeatureGate,
-        exportPDF: ExportVehicleHistoryPDF,
-        router: AppRouter,
         syncStore: SyncStatusStore
     ) {
         self.formatter = formatter
         self.preferences = preferences
         self.authStore = authStore
-        self.featureGate = featureGate
-        self.exportPDF = exportPDF
-        self.router = router
         self.syncStore = syncStore
         refresh()
     }
@@ -48,27 +39,5 @@ final class SettingsViewModel {
             telemetryEnabled: preferences.telemetryEnabled,
             syncState: syncStore.state
         )
-    }
-
-    /// Premium-gated. A refusal routes to the paywall rather than surfacing an error.
-    func exportPDF(vehicleID: VehicleID?) async {
-        message = nil
-        let access = featureGate.evaluate(.pdfExport)
-        guard access.isAllowed else {
-            if let reason = access.lockReason {
-                router.present(.paywall(RouteGuard.paywallContext(for: .pdfExport, reason: reason)))
-            }
-            return
-        }
-        guard let vehicleID else {
-            message = "Add a vehicle first."
-            return
-        }
-        do {
-            let url = try await exportPDF(vehicleID: vehicleID, period: .allTime)
-            router.present(.shareExport(url))
-        } catch {
-            message = ErrorPresenter.present(error).messageKey
-        }
     }
 }

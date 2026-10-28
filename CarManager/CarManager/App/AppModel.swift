@@ -62,6 +62,10 @@ public final class AppModel {
 
     public var selectedVehicleID: VehicleID? { vehicles.selected?.id }
 
+    /// A question prepared elsewhere (a scan result's "Ask AI") for the next new chat.
+    /// Read once, then cleared.
+    public var pendingAIQuestion: String?
+
     public func acknowledgeDisclaimer(_ kind: DisclaimerKind) {
         let version = kind == .notProfessionalDiagnostics
             ? AIDisclaimer.dashboard.version

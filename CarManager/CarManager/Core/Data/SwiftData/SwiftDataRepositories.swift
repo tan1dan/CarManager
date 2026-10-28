@@ -166,3 +166,24 @@ struct SwiftDataNotificationInboxRepository: NotificationInboxRepository {
     }
     func clearAll() async throws { try await store.clearNotifications() }
 }
+
+/// Dashboard scans and damage analyses are kept (and synced); receipt scans are NOT — a
+/// receipt lives only until the user confirms or discards it, so nothing extracted is ever
+/// stored without that confirmation.
+struct SwiftDataScanRepository: ScanRepository {
+    let store: PersistenceActor
+    let receipts: InMemoryScanRepository
+
+    func receiptScan(id: ReceiptScanID) async throws -> ReceiptScan? { try await receipts.receiptScan(id: id) }
+    func upsert(_ scan: ReceiptScan) async throws { try await receipts.upsert(scan) }
+
+    func insert(_ scan: DashboardScan) async throws { try await store.saveDashboardScan(scan) }
+    func dashboardScan(id: DashboardScanID) async throws -> DashboardScan? { try await store.dashboardScan(id: id) }
+    func dashboardScans(vehicleID: VehicleID?) async throws -> [DashboardScan] { try await store.dashboardScans(vehicleID: vehicleID) }
+    func deleteDashboardScan(id: DashboardScanID) async throws -> [FileRef] { try await store.deleteDashboardScan(id: id) }
+
+    func insert(_ analysis: DamageAnalysis) async throws { try await store.saveDamageAnalysis(analysis) }
+    func damageAnalysis(id: DamageAnalysisID) async throws -> DamageAnalysis? { try await store.damageAnalysis(id: id) }
+    func damageAnalyses(vehicleID: VehicleID?) async throws -> [DamageAnalysis] { try await store.damageAnalyses(vehicleID: vehicleID) }
+    func deleteDamageAnalysis(id: DamageAnalysisID) async throws -> [FileRef] { try await store.deleteDamageAnalysis(id: id) }
+}

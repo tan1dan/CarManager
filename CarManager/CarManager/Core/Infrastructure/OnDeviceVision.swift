@@ -52,25 +52,82 @@ public struct JPEGImagePreprocessor: ImagePreprocessing {
 }
 
 /// Receipts are read on the device: Vision OCR plus `ReceiptTextParser`. Dashboard lights and
-/// body damage need a vision model behind our proxy; until it exists this says so plainly
-/// instead of inventing findings.
-public struct OnDeviceVisionAnalysisProvider: VisionAnalysisProvider {
+/// body damage go to the `car-vision` Edge Function; without it (no endpoint configured) they
+/// fail plainly instead of inventing findings.
+public struct HybridVisionAnalysisProvider: VisionAnalysisProvider {
     private let vehicles: any VehicleRepository
+    private let odometer: any OdometerRepository
+    private let remote: CarVisionService?
+    private let receipts: CarReceiptService?
     private let clock: any ClockProviding
+    private let language: String
 
-    public init(vehicles: any VehicleRepository, clock: any ClockProviding) {
+    public init(
+        vehicles: any VehicleRepository, odometer: any OdometerRepository, remote: CarVisionService?,
+        receipts: CarReceiptService? = nil,
+        clock: any ClockProviding, language: String = Locale.current.language.languageCode?.identifier ?? "en"
+    ) {
         self.vehicles = vehicles
+        self.odometer = odometer
+        self.remote = remote
+        self.receipts = receipts
         self.clock = clock
+        self.language = language
     }
 
     public func analyze(_ request: VisionAnalysisRequest) async throws -> VisionAnalysisResult {
         switch request {
-        case .receipt(_, let ocrText, let vehicleID):
+        case .receipt(let image, let ocrText, let vehicleID):
+            let (vehicle, currency) = await facts(vehicleID)
+            if let receipts {
+                do {
+                    let response = try await receipts.analyze(
+                        image: image, ocrText: ocrText, targetCurrency: currency, vehicle: vehicle,
+                        language: language, today: clock.now, calendar: clock.calendar
+                    )
+                    return .receipt(try CarReceiptService.draft(from: response, target: currency, calendar: clock.calendar))
+                } catch let error as DomainError where Self.canReadOnDevice(after: error) {
+                    // No connection or the service is down: fall back to the on-device reader.
+                }
+            }
             guard let text = ocrText, !text.isEmpty else { throw DomainError.ai(.noTextRecognized) }
-            let currency = (try? await vehicles.vehicle(id: vehicleID))?.primaryCurrency ?? .eur
-            return .receipt(ReceiptTextParser.parse(text, fallbackCurrency: currency, now: clock.now, calendar: clock.calendar))
-        case .dashboard, .damage:
-            throw DomainError.ai(.providerUnavailable)
+            var draft = ReceiptTextParser.parse(text, fallbackCurrency: currency, now: clock.now, calendar: clock.calendar)
+            if receipts != nil { draft.warnings.insert(.readOnDevice) }
+            return .receipt(draft)
+
+        case .dashboard(let image, let vehicleID):
+            guard let remote else { throw DomainError.ai(.notConfigured) }
+            let (vehicle, currency) = await facts(vehicleID)
+            let response = try await remote.analyze(kind: .dashboard, images: [image], vehicle: vehicle,
+                                                    currency: currency, language: language)
+            return .dashboard(CarVisionService.dashboardFindings(response), summary: response.summary)
+
+        case .damage(let images, let vehicleID):
+            guard let remote else { throw DomainError.ai(.notConfigured) }
+            let (vehicle, currency) = await facts(vehicleID)
+            let response = try await remote.analyze(kind: .damage, images: Array(images.prefix(3)), vehicle: vehicle,
+                                                    currency: currency, language: language)
+            return .damage(CarVisionService.damageFindings(response, currency: currency), summary: response.summary)
         }
+    }
+
+    /// Only transport problems fall back. "Not a receipt" or a rejected request must not be
+    /// papered over by a weaker reader.
+    static func canReadOnDevice(after error: DomainError) -> Bool {
+        switch error {
+        case .ai(.offline), .ai(.timedOut), .ai(.serverError), .ai(.rateLimited), .ai(.transport), .ai(.structuredOutputInvalid):
+            true
+        default:
+            false
+        }
+    }
+
+    /// Make, model, year, fuel and mileage — never the VIN or plate — plus the car's currency.
+    private func facts(_ vehicleID: VehicleID?) async -> (AIChatVehicle?, CurrencyCode) {
+        guard let vehicleID, let vehicle = try? await vehicles.vehicle(id: vehicleID) else { return (nil, .eur) }
+        let km = (try? await odometer.current(vehicleID: vehicleID))?.value.kilometers
+        return (AIChatVehicle(make: vehicle.brand, model: vehicle.model, year: vehicle.year,
+                              fuelType: vehicle.fuelType.rawValue, mileageKm: km.map { Int($0.rounded()) }),
+                vehicle.primaryCurrency)
     }
 }

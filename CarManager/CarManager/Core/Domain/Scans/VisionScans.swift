@@ -59,13 +59,15 @@ public struct DashboardScan: Identifiable, Hashable, Sendable {
     public var findings: [DashboardFinding]
     public let disclaimer: AIDisclaimer
     public let createdAt: Date
+    public var summary: String?
 
     public init(
         id: DashboardScanID = DashboardScanID(), vehicleID: VehicleID?, imageRef: FileRef,
-        findings: [DashboardFinding], disclaimer: AIDisclaimer = .dashboard, createdAt: Date
+        findings: [DashboardFinding], disclaimer: AIDisclaimer = .dashboard, createdAt: Date, summary: String? = nil
     ) {
         self.id = id; self.vehicleID = vehicleID; self.imageRef = imageRef
         self.findings = findings; self.disclaimer = disclaimer; self.createdAt = createdAt
+        self.summary = summary
     }
 }
 
@@ -114,13 +116,15 @@ public struct DamageAnalysis: Identifiable, Hashable, Sendable {
     public var findings: [DamageFinding]
     public let disclaimer: AIDisclaimer
     public let createdAt: Date
+    public var summary: String?
 
     public init(
         id: DamageAnalysisID = DamageAnalysisID(), vehicleID: VehicleID, imageRefs: [FileRef],
-        findings: [DamageFinding], disclaimer: AIDisclaimer = .damage, createdAt: Date
+        findings: [DamageFinding], disclaimer: AIDisclaimer = .damage, createdAt: Date, summary: String? = nil
     ) {
         self.id = id; self.vehicleID = vehicleID; self.imageRefs = imageRefs
         self.findings = findings; self.disclaimer = disclaimer; self.createdAt = createdAt
+        self.summary = summary
     }
 }
 

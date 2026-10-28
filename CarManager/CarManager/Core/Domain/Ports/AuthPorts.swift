@@ -9,6 +9,8 @@ public protocol AuthProviding: Sendable {
     func signInWithApple(_ credential: AppleIDCredential) async throws -> UserProfile
     func signOut() async throws
     func deleteAccount() async throws
+    /// The name shown in the app. Only ever displayed — it identifies nothing.
+    func updateDisplayName(_ name: String) async throws -> UserProfile
 }
 
 /// Where the Apple identity is persisted between launches (the Keychain in production).

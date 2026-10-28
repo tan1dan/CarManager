@@ -96,8 +96,25 @@ extension AppleIDCredential {
         self.init(
             userID: credential.user,
             fullName: name.isEmpty ? nil : name,
-            email: credential.email
+            // `email` arrives only on the very first authorization. The identity token carries
+            // it on every sign-in, so a returning user still has one. Display only — the token
+            // is not verified here and is never trusted for anything else.
+            email: credential.email ?? Self.email(fromIdentityToken: credential.identityToken)
         )
+    }
+
+    /// Reads the `email` claim from a JWT's payload without verifying it.
+    static func email(fromIdentityToken token: Data?) -> String? {
+        guard let token, let jwt = String(data: token, encoding: .utf8) else { return nil }
+        let parts = jwt.split(separator: ".")
+        guard parts.count >= 2 else { return nil }
+        var payload = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+        guard let data = Data(base64Encoded: payload),
+              let claims = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let email = claims["email"] as? String, !email.isEmpty
+        else { return nil }
+        return email
     }
 }
 

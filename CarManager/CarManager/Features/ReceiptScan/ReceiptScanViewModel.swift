@@ -68,10 +68,12 @@ final class ReceiptScanViewModel {
         kind = draft.suggestedRecordKind == .service ? .service : draft.suggestedRecordKind
         vendor = draft.vendor.value ?? ""
         date = draft.date.value ?? clock.now
+        // Amounts are kept in the car's currency; the receipt's own is shown alongside.
+        currency = draft.conversion?.to ?? draft.total.value?.currency ?? currency
         if let total = draft.total.value {
-            currency = total.currency
             totalText = format.decimal(total.amount.doubleValue, digits: 2)
         }
+        if let km = draft.odometer.value { odometerText = format.integer(km.kilometers) }
         category = draft.expenseCategory.value ?? .other
         litresText = draft.fuelVolume.value.map { format.decimal($0.liters, digits: 2) } ?? ""
         confidences = [
@@ -81,6 +83,54 @@ final class ReceiptScanViewModel {
             .category: draft.expenseCategory.confidence,
             .litres: draft.fuelVolume.value == nil ? 0 : draft.fuelVolume.confidence
         ]
+    }
+
+    /// How the total relates to what is printed: converted, or needing a manual amount.
+    var conversionNote: (text: String, tone: Tone)? {
+        guard let draft = original, let conversion = draft.conversion else { return nil }
+        let printed = draft.originalTotal.map { format.money($0, fractionDigits: 2) }
+        switch conversion.status {
+        case .sameCurrency:
+            return nil
+        case .converted:
+            guard let printed, let rate = conversion.rate, let from = conversion.from else { return nil }
+            let rateText = format.decimal(rate.doubleValue, digits: 4)
+            let when = conversion.rateDate.map { " on \($0)" } ?? ""
+            let source = conversion.source.map { $0.hasPrefix("ECB") ? "ECB" : "market" } ?? "published"
+            return ("Receipt total \(printed). Converted to \(conversion.to.iso4217) at the \(source) rate 1 \(from.iso4217) = \(rateText) \(conversion.to.iso4217)\(when).", .accent)
+        case .rateUnavailable:
+            return ("Receipt total \(printed ?? "in another currency"). No exchange rate is available — enter the amount in \(conversion.to.iso4217).", .warning)
+        case .unknownCurrency:
+            return ("The receipt's currency couldn't be read. Enter the amount in \(conversion.to.iso4217).", .warning)
+        }
+    }
+
+    /// Jobs and parts read from a workshop invoice, with their price in the car's currency.
+    var serviceLines: [(name: String, price: String?)] {
+        (original?.serviceItems ?? []).map { item in
+            (item.name, item.partCost.map { format.money($0, fractionDigits: 2) })
+        }
+    }
+
+    /// Plain words for what the reader noticed.
+    var warningNotes: [String] {
+        guard let warnings = original?.warnings else { return [] }
+        return ReceiptWarning.allCases.filter(warnings.contains).compactMap { warning in
+            switch warning {
+            case .blurry, .faded: "The photo is hard to read — check every value."
+            case .cutOff: "Part of the receipt is cut off."
+            case .handwritten: "Handwritten receipt — check the amounts."
+            case .multipleReceipts: "More than one receipt in the photo; only one was read."
+            case .refund: "This looks like a refund."
+            case .mathMismatch: "Litres × price doesn't match the amount on the receipt."
+            case .tipIncluded: "The total includes a tip."
+            case .notCarRelated: "This doesn't look car-related."
+            case .partialPayment: "Only part of the bill seems to be paid here."
+            case .unreadable: "Most of the receipt couldn't be read."
+            case .readOnDevice: "No connection — read on this iPhone only, so fewer details were found."
+            case .foreignCurrency: nil
+            }
+        }
     }
 
     /// The least certain field the user should look at, if any.

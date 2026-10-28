@@ -103,7 +103,14 @@ public final class AppRouter {
     public func select(tab: AppTab) { selectedTab = tab }
 
     public func push(_ route: AppRoute, in tab: AppTab? = nil) {
-        navigate(to: AppDestination(tab: tab ?? selectedTab, path: currentPath(for: tab ?? selectedTab) + [route]))
+        let target = tab ?? selectedTab
+        // A double tap must not stack the same screen twice — Back would then "do nothing",
+        // revealing an identical copy underneath.
+        if currentPath(for: target).last == route {
+            selectedTab = target
+            return
+        }
+        navigate(to: AppDestination(tab: target, path: currentPath(for: target) + [route]))
     }
 
     private func currentPath(for tab: AppTab) -> [AppRoute] { router(for: tab).path }

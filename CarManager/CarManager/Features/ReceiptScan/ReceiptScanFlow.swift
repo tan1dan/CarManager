@@ -62,7 +62,7 @@ private struct ReceiptScanContentView: View {
 
         case .recognizing, .analyzing:
             ScanProcessingView(imageData: viewModel.imageData, title: "Reading the receipt…",
-                               subtitle: "Text is recognised on this iPhone.")
+                               subtitle: "Amounts in another currency are converted at the official rate.")
                 .accessibilityIdentifier("receiptProcessing")
 
         case .awaitingReview, .editing, .confirming:
@@ -101,9 +101,20 @@ private struct ReceiptReviewForm: View {
                     InfoBanner(symbol: "exclamationmark.shield",
                                text: "Check before saving. These values were read from the photo and may be wrong.",
                                tone: .warning)
+                    if let note = viewModel.conversionNote {
+                        InfoBanner(symbol: note.tone == .warning ? "exclamationmark.triangle" : "arrow.left.arrow.right",
+                                   text: note.text, tone: note.tone)
+                            .accessibilityIdentifier("receiptConversion")
+                    }
+                    ForEach(viewModel.warningNotes, id: \.self) { note in
+                        InfoBanner(symbol: "exclamationmark.circle", text: note, tone: .neutral)
+                    }
                     if let data = viewModel.imageData, let image = UIImage(data: data) {
                         Image(uiImage: image)
                             .resizable().scaledToFill()
+                    // A filled photo overflows its frame; clipping hides that but does not stop the
+                    // overflow catching taps (it sat over the Back button).
+                    .allowsHitTesting(false)
                             .frame(height: 140).frame(maxWidth: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                             .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(DS.Colors.hairline))
@@ -132,6 +143,17 @@ private struct ReceiptReviewForm: View {
                                 FormTextRow(label: "Odometer", text: $viewModel.odometerText, placeholder: "Optional",
                                             unit: viewModel.format.distanceUnit, keyboard: .numberPad)
                             }
+                        }
+                    }
+                    if viewModel.kind == .service, !viewModel.serviceLines.isEmpty {
+                        VStack(spacing: 8) {
+                            Eyebrow(text: "On the invoice")
+                            VStack(spacing: 0) {
+                                ForEach(Array(viewModel.serviceLines.enumerated()), id: \.offset) { index, line in
+                                    FormValueRow(label: line.name, value: line.price ?? "", isFirst: index == 0)
+                                }
+                            }
+                            .dsSurface()
                         }
                     }
                     if let field = viewModel.lowConfidenceField {
@@ -178,6 +200,9 @@ struct ScanProcessingView: View {
                 RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius).fill(Color.white.opacity(0.03))
                 if let imageData, let image = UIImage(data: imageData) {
                     Image(uiImage: image).resizable().scaledToFill()
+                    // A filled photo overflows its frame; clipping hides that but does not stop the
+                    // overflow catching taps (it sat over the Back button).
+                    .allowsHitTesting(false)
                         .clipShape(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius))
                         .opacity(0.35)
                 }

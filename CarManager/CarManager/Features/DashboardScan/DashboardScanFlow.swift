@@ -15,7 +15,7 @@ struct DashboardScannerView: View {
                     ScanProcessingView(imageData: viewModel.imageData, title: "Looking at the lights…")
                         .accessibilityIdentifier("dashboardProcessing")
                 case .success(let scan):
-                    DashboardScanResultContentView(scan: scan, imageData: viewModel.imageData, onClose: close, onAsk: ask)
+                    DashboardScanResultContentView(scan: scan, imageData: viewModel.imageData, onClose: close) { ask(scan) }
                 case .failed:
                     ScanMessageView(symbol: "exclamationmark.triangle", title: "Couldn't analyse the photo",
                                     message: viewModel.failure ?? "", primaryTitle: "Try again", primary: viewModel.reset,
@@ -42,7 +42,18 @@ struct DashboardScannerView: View {
 
     private func close() { model?.router.dismissFullScreen() }
 
-    private func ask() {
+    /// The question a new chat starts with: the lights already written in, ready to send.
+    static func question(for scan: DashboardScan) -> String {
+        let lights = scan.findings.map { finding in
+            finding.recommendedAction.isEmpty ? finding.warningName : "\(finding.warningName) (\(finding.recommendedAction))"
+        }
+        return lights.isEmpty
+            ? "A warning light is on on my dashboard. How can I tell what it means?"
+            : "These warning lights are on: \(lights.joined(separator: "; ")). What should I check, and is it safe to keep driving?"
+    }
+
+    private func ask(_ scan: DashboardScan) {
+        model?.pendingAIQuestion = Self.question(for: scan)
         model?.router.dismissFullScreen()
         model?.router.select(tab: .ai)
         model?.router.push(.aiChat(nil), in: .ai)
@@ -64,18 +75,33 @@ struct DashboardScanResultContentView: View {
                     ScanHeroImage(imageData: imageData, symbol: "gauge.with.dots.needle.33percent",
                                   badge: scan.findings.isEmpty ? "NO LIGHTS FOUND"
                                          : "\(scan.findings.count) LIGHT\(scan.findings.count == 1 ? "" : "S") FOUND")
+                    if let summary = scan.summary, !summary.isEmpty {
+                        Text(summary).font(DS.Text.subheadlineRegular).foregroundStyle(.white.opacity(0.85))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     ForEach(Array(scan.findings.enumerated()), id: \.offset) { _, finding in
                         FindingCard(symbol: symbol(finding.severity), tone: tone(finding.severity),
-                                    title: finding.warningName, subtitle: finding.recommendedAction)
+                                    title: finding.warningName, subtitle: finding.recommendedAction,
+                                    detail: finding.likelyCauses.isEmpty ? nil : "Likely: " + finding.likelyCauses.prefix(3).joined(separator: ", "),
+                                    badge: badge(finding.drivingSafety))
                     }
                     // The disclaimer is part of the model, not just UI copy.
                     InfoBanner(symbol: "info.circle", text: "Not professional diagnostics. When in doubt, see a mechanic.", tone: .neutral)
                         .accessibilityIdentifier("dashboardDisclaimer")
-                    SaveButton(title: "Ask AI about these", symbol: "sparkles", action: onAsk)
+                    SaveButton(title: scan.findings.isEmpty ? "Ask AI" : "Ask AI about these", symbol: "sparkles", action: onAsk)
                 }
                 .padding(.horizontal, DS.Layout.gutter)
             }
             .padding(.bottom, 24)
+        }
+    }
+
+    /// Only the two answers a driver must not miss get a badge.
+    private func badge(_ safety: DrivingSafetyAssessment) -> (String, Tone)? {
+        switch safety {
+        case .doNotDrive: ("Don't drive", .danger)
+        case .cautionAdvised: ("Drive with care", .warning)
+        case .likelySafe, .unknown: nil
         }
     }
 
@@ -107,6 +133,9 @@ struct ScanHeroImage: View {
             RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius).fill(DS.Colors.surface)
             if let imageData, let image = UIImage(data: imageData) {
                 Image(uiImage: image).resizable().scaledToFill()
+                    // A filled photo overflows its frame; clipping hides that but does not stop the
+                    // overflow catching taps (it sat over the Back button).
+                    .allowsHitTesting(false)
                     .frame(maxWidth: .infinity).frame(height: 160)
                     .clipShape(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius))
             } else {
@@ -121,6 +150,8 @@ struct ScanHeroImage: View {
                 .padding(14)
         }
         .frame(height: 160)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius))
+        .contentShape(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius))
         .overlay(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius).strokeBorder(DS.Colors.hairline))
     }
 }
@@ -131,17 +162,27 @@ struct FindingCard: View {
     let tone: Tone
     let title: String
     let subtitle: String
+    var detail: String?
+    var badge: (String, Tone)?
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(alignment: .top, spacing: 14) {
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(tone.color)
                 .frame(width: 44, height: 44)
                 .background(Circle().fill(tone.color.opacity(0.16)))
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title).font(DS.Text.rowTitle).foregroundStyle(.white)
-                Text(subtitle).font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
+                if !subtitle.isEmpty {
+                    Text(subtitle).font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let detail {
+                    Text(detail).font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary.opacity(0.8))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let badge { Chip(text: badge.0, tone: badge.1).padding(.top, 2) }
             }
             Spacer(minLength: 0)
         }
@@ -151,11 +192,37 @@ struct FindingCard: View {
     }
 }
 
-/// Reached from a route when the result is opened later. Scans are kept only for the session.
+/// A saved dashboard scan, opened from history.
 struct DashboardScanResultView: View {
     let scanID: DashboardScanID
     @Environment(\.appModel) private var model
+    @State private var loaded: (DashboardScan, Data?)?
+    @State private var missing = false
+
     var body: some View {
-        VStack { PushedHeader(title: "Dashboard scan", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        Group {
+            if let (scan, image) = loaded {
+                DashboardScanResultContentView(scan: scan, imageData: image, onClose: { model?.router.pop() }) {
+                    model?.pendingAIQuestion = DashboardScannerView.question(for: scan)
+                    model?.router.push(.aiChat(nil))
+                }
+            } else if missing {
+                VStack {
+                    PushedHeader(title: "Dashboard scan", onBack: { model?.router.pop() })
+                    EmptyStateView(symbol: "trash", title: "Scan not found", message: "It may have been deleted on another device.")
+                    Spacer()
+                }
+            } else {
+                ProgressView().tint(DS.Colors.textSecondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .dsScreen()
+        .task {
+            guard loaded == nil, let model else { return }
+            let d = model.dependencies
+            guard let scan = try? await d.scans.dashboardScan(id: scanID) else { missing = true; return }
+            // The photo lives on the device that took it; on another device the result shows without it.
+            loaded = (scan, try? await d.files.read(scan.imageRef))
+        }
     }
 }

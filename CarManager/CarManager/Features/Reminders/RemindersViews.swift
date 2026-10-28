@@ -31,7 +31,8 @@ struct RemindersView: View {
             VStack(spacing: 8) {
                 Eyebrow(text: "All reminders")
                 RowGroup(items: p.rows) { row in
-                    reminderRow(row)
+                    Button { model?.router.push(.reminderDetail(row.id)) } label: { reminderRow(row) }
+                        .buttonStyle(.plain)
                         .contextMenu {
                             Button("Delete", systemImage: "trash", role: .destructive) {
                                 Task { await viewModel?.delete(row.id, vehicleID: vehicleID) }
@@ -117,11 +118,119 @@ struct RemindersView: View {
     }
 }
 
+/// One reminder: where it stands, its schedule, and "Mark as done".
 struct ReminderDetailsView: View {
     let reminderID: ReminderID
     @Environment(\.appModel) private var model
+    @State private var viewModel: ReminderDetailViewModel?
+    @State private var confirmingDelete = false
+
     var body: some View {
-        VStack { PushedHeader(title: "Reminder", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        ScrollView {
+            VStack(spacing: DS.Layout.sectionSpacing) {
+                PushedHeader(title: "Reminder", onBack: { model?.router.pop() })
+                content.padding(.horizontal, DS.Layout.gutter)
+            }
+            .padding(.bottom, 32)
+        }
+        .scrollIndicators(.hidden)
+        .dsScreen()
+        .confirmDialog(isPresented: $confirmingDelete, symbol: "trash", title: "Delete this reminder?",
+                       message: "Its notifications are cancelled too.", confirmTitle: "Delete") {
+            Task { if await viewModel?.remove(id: reminderID) == true { model?.router.pop() } }
+        }
+        .task { await load() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch viewModel?.state {
+        case .loaded(let p):
+            hero(p)
+            VStack(spacing: 0) {
+                ForEach(Array(p.rows.enumerated()), id: \.element.id) { index, row in
+                    FormValueRow(label: row.label, value: row.value, isFirst: index == 0)
+                }
+            }
+            .dsSurface()
+            if let confirmation = viewModel?.confirmation {
+                InfoBanner(symbol: "checkmark.circle", text: confirmation, tone: .success)
+            }
+            if let error = viewModel?.errorMessage {
+                Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if p.isActive {
+                SaveButton(title: "Mark as done", isBusy: viewModel?.isWorking ?? false) {
+                    Task { await viewModel?.markDone(id: reminderID) }
+                }
+                .accessibilityIdentifier("reminderMarkDone")
+            }
+            Button { model?.router.push(.reminders(p.vehicleID)) } label: {
+                Text("All reminders").font(DS.Text.button).foregroundStyle(DS.Colors.accent)
+            }
+            .buttonStyle(.plain)
+            Button(role: .destructive) { confirmingDelete = true } label: {
+                Label("Delete reminder", systemImage: "trash")
+                    .font(DS.Text.rowTitle).foregroundStyle(DS.Colors.danger)
+                    .frame(maxWidth: .infinity).frame(height: DS.Layout.buttonHeight)
+                    .background(Capsule().fill(DS.Colors.danger.opacity(0.14)))
+            }
+            .buttonStyle(.plain)
+        case .empty:
+            EmptyStateView(symbol: "bell.slash", title: "Reminder not found",
+                           message: "It may have been deleted on another device.")
+        case .failed(let error):
+            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load the reminder",
+                           message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
+        default:
+            ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
+        }
+    }
+
+    private func hero(_ p: ReminderDetailPresentation) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: p.symbol)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(p.tone == .danger ? DS.Colors.danger : .white)
+                .frame(width: 48, height: 48)
+                .background(Circle().fill(p.tone == .danger ? DS.Colors.danger.opacity(0.16) : Color.white.opacity(0.08)))
+                .padding(.bottom, 14)
+            Text(p.title).font(DS.Text.headline).tracking(DS.Text.headlineTracking).foregroundStyle(.white)
+            Text(p.status)
+                .font(DS.Text.subheadlineRegular)
+                .foregroundStyle(p.tone == .danger ? DS.Colors.danger : p.tone == .warning ? DS.Colors.warning : DS.Colors.onCardSecondary)
+                .padding(.top, 2)
+            if let fraction = p.fraction {
+                ProgressBar(fraction: fraction, color: p.tone == .neutral || p.tone == .accent ? DS.Colors.accent : p.tone.color, height: 6)
+                    .padding(.top, 18)
+                HStack {
+                    if let start = p.startLabel { Text(start) }
+                    Spacer()
+                    if let end = p.endLabel { Text(end) }
+                }
+                .font(DS.Text.statCaption).foregroundStyle(DS.Colors.onCardSecondary).padding(.top, 8)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(20)
+        .background(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius).fill(DS.Gradients.vehicleCard))
+        .overlay(RoundedRectangle(cornerRadius: DS.Layout.surfaceRadius).strokeBorder(DS.Colors.hairline))
+    }
+
+    private func load() async {
+        guard let model else { return }
+        if viewModel == nil {
+            let d = model.dependencies
+            viewModel = ReminderDetailViewModel(
+                reminders: d.reminders, vehicles: d.vehicles, odometer: d.odometer,
+                complete: CompleteReminder(reminders: d.reminders, odometer: d.odometer, notifications: d.notifications, clock: d.clock),
+                delete: DeleteReminder(reminders: d.reminders, notifications: d.notifications),
+                format: DisplayFormat(calendar: d.clock.calendar, unitSystem: d.preferences.unitSystem),
+                clock: d.clock
+            )
+        }
+        await viewModel?.load(id: reminderID)
     }
 }
 

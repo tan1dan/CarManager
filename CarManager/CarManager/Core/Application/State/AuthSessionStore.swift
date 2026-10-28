@@ -31,13 +31,18 @@ public final class AuthSessionStore {
         state = .signedOut
     }
 
-    public func deleteAccount() async throws {
-        try await auth.deleteAccount()
+    /// Runs the full erase (`DeleteAccount`), then shows the welcome screen.
+    public func deleteAccount(_ erase: DeleteAccount) async throws {
+        try await erase()
         state = .signedOut
     }
 
     /// Adopts a profile produced by a use case, so the ViewModel never has to reach into
     /// the auth provider itself.
     public func adopt(_ profile: UserProfile) { state = .authenticated(profile) }
+
+    public func updateDisplayName(_ name: String) async throws {
+        state = .authenticated(try await auth.updateDisplayName(name))
+    }
 
 }

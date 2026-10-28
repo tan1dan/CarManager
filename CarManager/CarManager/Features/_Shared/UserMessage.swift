@@ -21,6 +21,7 @@ enum UserMessage {
         case .ai(.notConfigured): return "The AI assistant isn't set up in this build."
         case .ai(.messageTooLong(let max)): return "That message is too long — keep it under \(max) characters."
         case .ai(.transport): return "Couldn't reach the assistant. Check your connection and try again."
+        case .ai(.notAReceipt): return "That doesn't look like a receipt. Try again with the whole receipt in frame."
         case .ai(.noTextRecognized): return "No text found. Try again with the whole receipt in frame and good light."
         case .ai(.providerUnavailable): return "AI photo analysis isn't connected yet. It arrives with the AI service."
         case .ai(.requiresPremium): return "This needs Premium."

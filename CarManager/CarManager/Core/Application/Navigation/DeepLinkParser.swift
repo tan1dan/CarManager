@@ -47,6 +47,7 @@ public enum DeepLinkParser {
             return .tab(.garage, path: [.documentDetail(id)])
 
         case "ai":
+            if segments.first == "scans" { return .tab(.ai, path: [.scanHistory]) }
             if segments.first == "chat" {
                 let conversation = query.first { $0.name == "conversation" }?.value
                     .flatMap { ConversationID(uuidString: $0) }

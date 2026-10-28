@@ -21,7 +21,7 @@ public struct AppleAuthProvider: AuthProviding {
     }
 
     public func restoreSession() async throws -> UserProfile? {
-        guard let stored = try identityStore.load() else { return nil }
+        guard let stored = try identityStore.load(), !stored.isSignedOut else { return nil }
         switch await credentialState.state(forUserID: stored.userID) {
         case .authorized:
             return stored.profile
@@ -49,13 +49,26 @@ public struct AppleAuthProvider: AuthProviding {
         return identity.profile
     }
 
+    /// Ends the session but remembers the name and email: Apple sends them only once.
     public func signOut() async throws {
-        try identityStore.clear()
+        guard var stored = try identityStore.load() else { return }
+        stored.isSignedOut = true
+        try identityStore.save(stored)
     }
 
-    /// Forgets the account on this device. The garage itself lives in the user's iCloud, and
-    /// the Apple authorization can only be revoked by the user in Settings, so deleting the
-    /// app's own data is a separate step owned by the CloudKit layer.
+    public func updateDisplayName(_ name: String) async throws -> UserProfile {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard (1...UserProfile.maxDisplayNameLength).contains(trimmed.count) else {
+            throw DomainError.validation(.emptyField(.name))
+        }
+        guard var stored = try identityStore.load() else { throw DomainError.authentication(.requiresReauthentication) }
+        stored.displayName = trimmed
+        try identityStore.save(stored)
+        return stored.profile
+    }
+
+    /// Forgets the identity on this device entirely. The data itself is erased by
+    /// `DeleteAccount` before this runs.
     public func deleteAccount() async throws {
         try identityStore.clear()
     }

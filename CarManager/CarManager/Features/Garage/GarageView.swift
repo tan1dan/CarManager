@@ -30,11 +30,14 @@ struct GarageView: View {
                     }
                 }
                 .padding(.bottom, DS.Layout.tabBarReservedHeight)
+                // The new primary card slides up to the top.
+                .animation(.snappy, value: presentation.cards.map(\.id))
             }
             .scrollIndicators(.hidden)
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
+        .onChange(of: model?.vehicles.revision) { Task { await load() } }
         // Stopgap until the repository change feed lands (architecture Phase 4).
         .onChange(of: model?.router.activeModal) { _, modal in
             if modal == nil { Task { await load() } }
@@ -73,20 +76,34 @@ struct GarageView: View {
 
     @ViewBuilder
     private var content: some View {
-        if let primary = presentation.primary {
-            PrimaryVehicleCard(card: primary) {
-                model?.router.push(.vehicleDetail(primary.id), in: .garage)
+        ForEach(presentation.cards) { card in
+            VehicleCardView(card: card, onTap: {
+                model?.router.push(.vehicleDetail(card.id), in: .garage)
+            }, onMakePrimary: { makePrimary(card.id) })
+            .contextMenu {
+                if !card.isPrimary {
+                    Button("Make primary", systemImage: "star") { makePrimary(card.id) }
+                }
+                Button("Open", systemImage: "car") { model?.router.push(.vehicleDetail(card.id), in: .garage) }
             }
             .padding(.horizontal, DS.Layout.gutter)
-            .accessibilityIdentifier("garageVehicle_\(primary.id.raw.uuidString)")
+            .accessibilityIdentifier("garageVehicle_\(card.id.raw.uuidString)")
         }
+        if presentation.cards.count > 1 {
+            Text("The primary car is the one Home, AI chat and quick add use. Tap “Make primary” on any car to switch.")
+                .font(DS.Text.caption)
+                .foregroundStyle(DS.Colors.textSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, DS.Layout.gutter)
+        }
+    }
 
-        ForEach(presentation.others) { row in
-            CollapsedVehicleRow(row: row) {
-                model?.router.push(.vehicleDetail(row.id), in: .garage)
-            }
-            .padding(.horizontal, DS.Layout.gutter)
-            .accessibilityIdentifier("garageVehicle_\(row.id.raw.uuidString)")
+    /// The new primary card slides to the top; Home and every other screen follow.
+    private func makePrimary(_ id: VehicleID) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        Task {
+            await model?.vehicles.select(id)
+            await load()
         }
     }
 
@@ -156,55 +173,83 @@ struct GarageView: View {
     }
 }
 
-// MARK: - Primary card
+// MARK: - Vehicle card
 
-private struct PrimaryVehicleCard: View {
-    let card: GaragePresentationModel.PrimaryCard
+/// Every car looks the same. The primary one carries a filled "Primary" badge; the others show
+/// a "Make primary" button in the same place, so switching is one obvious tap.
+private struct VehicleCardView: View {
+    let card: GaragePresentationModel.VehicleCard
     let onTap: () -> Void
+    let onMakePrimary: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(card.subtitle)
-                            .font(DS.Text.subheadline)
-                            .tracking(DS.Text.defaultTracking)
-                            .foregroundStyle(DS.Colors.onCardSecondary)
-                        Text(card.name)
-                            .font(DS.Text.headline)
-                            .tracking(DS.Text.headlineTracking)
-                            .foregroundStyle(DS.Colors.onCardPrimary)
-                    }
-                    Spacer(minLength: 8)
-                    Text(card.chip)
-                        .font(DS.Text.chip)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(card.subtitle)
+                        .font(DS.Text.subheadline)
                         .tracking(DS.Text.defaultTracking)
+                        .foregroundStyle(DS.Colors.onCardSecondary)
+                    Text(card.name)
+                        .font(DS.Text.headline)
+                        .tracking(DS.Text.headlineTracking)
                         .foregroundStyle(DS.Colors.onCardPrimary)
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 5)
-                        .dsGlass(radius: DS.Layout.chipRadius)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-
-                HStack(spacing: 8) {
-                    ForEach(card.stats) { stat in
-                        GarageStatChip(stat: stat)
-                    }
-                }
-                .padding(.top, 20)
+                Spacer(minLength: 8)
+                badge
             }
-            .padding(21)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: DS.Layout.cardRadius, style: .circular)
-                    .fill(DS.Gradients.vehicleCard)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DS.Layout.cardRadius, style: .circular)
-                            .strokeBorder(Color.white.opacity(0.051), lineWidth: DS.Layout.hairlineWidth)
-                    )
-            )
+
+            HStack(spacing: 8) {
+                ForEach(card.stats) { stat in
+                    GarageStatChip(stat: stat)
+                }
+            }
+            .padding(.top, 20)
         }
-        .buttonStyle(.plain)
+        .padding(21)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DS.Layout.cardRadius, style: .circular)
+                .fill(DS.Gradients.vehicleCard)
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Layout.cardRadius, style: .circular)
+                        .strokeBorder(card.isPrimary ? DS.Colors.accent.opacity(0.55) : Color.white.opacity(0.051),
+                                      lineWidth: card.isPrimary ? 1.5 : DS.Layout.hairlineWidth)
+                )
+        )
+        .contentShape(.rect)
+        .onTapGesture(perform: onTap)
+        .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("\(card.name), \(card.subtitle)\(card.isPrimary ? ", primary" : "")")
+        .accessibilityAction(named: "Open", onTap)
+    }
+
+    @ViewBuilder
+    private var badge: some View {
+        if card.isPrimary {
+            Label("Primary", systemImage: "star.fill")
+                .font(DS.Text.chip)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .frame(height: 28)
+                .background(Capsule().fill(DS.Gradients.accentButton))
+                .accessibilityLabel("Primary vehicle")
+        } else {
+            Button(action: onMakePrimary) {
+                Label("Make primary", systemImage: "star")
+                    .font(DS.Text.chip)
+                    .foregroundStyle(DS.Colors.onCardPrimary)
+                    .padding(.horizontal, 12)
+                    .frame(height: 28)
+                    .dsGlass(radius: 14)
+                    .contentShape(.capsule)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("garageMakePrimary")
+        }
     }
 }
 
@@ -236,33 +281,5 @@ private struct GarageStatChip: View {
         .padding(.vertical, 11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .dsGlass(radius: DS.Layout.surfaceRadius)
-    }
-}
-
-// MARK: - Collapsed row
-
-private struct CollapsedVehicleRow: View {
-    let row: GaragePresentationModel.CollapsedRow
-    let onTap: () -> Void
-
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text(row.subtitle)
-                    .font(DS.Text.subheadlineRegular)
-                    .tracking(DS.Text.defaultTracking)
-                    .foregroundStyle(DS.Colors.textSecondary)
-                Text(row.name)
-                    .font(DS.Text.vehicleRowTitle)
-                    .tracking(DS.Text.vehicleRowTracking)
-                    .foregroundStyle(DS.Colors.onCardPrimary)
-            }
-            .padding(21)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .dsSurface()
-        }
-        .buttonStyle(.plain)
-        // The design dims non-primary vehicles to 70%.
-        .opacity(0.7)
     }
 }

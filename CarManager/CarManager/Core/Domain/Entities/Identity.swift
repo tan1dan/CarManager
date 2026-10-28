@@ -7,6 +7,8 @@ public enum AuthProvider: String, Codable, Sendable {
 /// ACCOUNT identity — gates AI, support and cross-device subscription restore.
 /// It does NOT own the garage: data lives in the device's iCloud account.
 public struct UserProfile: Identifiable, Hashable, Sendable {
+    public static let maxDisplayNameLength = 40
+
     public let id: UserID
     public var displayName: String?
     public var email: String?
@@ -37,6 +39,14 @@ public struct AppleIDCredential: Sendable, Equatable {
 }
 
 /// The Apple identity kept on the device between launches, in the Keychain.
+public extension UserProfile {
+    /// No usable name yet — Apple did not share one and the user has not typed one.
+    var needsDisplayName: Bool { (displayName ?? "").trimmingCharacters(in: .whitespaces).isEmpty }
+
+    /// An Apple "Hide My Email" relay address: real, but not something to show as an identity.
+    var hasPrivateRelayEmail: Bool { email?.lowercased().hasSuffix("privaterelay.appleid.com") ?? false }
+}
+
 public struct StoredAppleIdentity: Codable, Sendable, Equatable {
     /// Apple's own identifier — the key everything else hangs off.
     public let userID: String
@@ -45,13 +55,28 @@ public struct StoredAppleIdentity: Codable, Sendable, Equatable {
     public var displayName: String?
     public var email: String?
     public let firstSignedInAt: Date
+    /// Signing out keeps the name and email Apple will not send again; only this flips.
+    public var isSignedOut: Bool
 
     public init(
         userID: String, accountID: UserID = UserID(), displayName: String? = nil,
-        email: String? = nil, firstSignedInAt: Date
+        email: String? = nil, firstSignedInAt: Date, isSignedOut: Bool = false
     ) {
         self.userID = userID; self.accountID = accountID; self.displayName = displayName
-        self.email = email; self.firstSignedInAt = firstSignedInAt
+        self.email = email; self.firstSignedInAt = firstSignedInAt; self.isSignedOut = isSignedOut
+    }
+
+    private enum CodingKeys: String, CodingKey { case userID, accountID, displayName, email, firstSignedInAt, isSignedOut }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        userID = try c.decode(String.self, forKey: .userID)
+        accountID = try c.decode(UserID.self, forKey: .accountID)
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName)
+        email = try c.decodeIfPresent(String.self, forKey: .email)
+        firstSignedInAt = try c.decode(Date.self, forKey: .firstSignedInAt)
+        // Identities written before this flag existed were signed in.
+        isSignedOut = try c.decodeIfPresent(Bool.self, forKey: .isSignedOut) ?? false
     }
 
     public var profile: UserProfile {

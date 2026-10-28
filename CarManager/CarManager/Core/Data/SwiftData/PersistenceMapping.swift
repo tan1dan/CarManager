@@ -420,3 +420,107 @@ extension SDNotification {
         )
     }
 }
+
+// MARK: - Vision scans
+
+private struct DashboardFindingDTO: Codable {
+    var warningName: String
+    var likelyCauses: [String]
+    var severity: String
+    var recommendedAction: String
+    var drivingSafety: String
+    var confidence: Double
+
+    init(_ f: DashboardFinding) {
+        warningName = f.warningName; likelyCauses = f.likelyCauses; severity = f.severity.rawValue
+        recommendedAction = f.recommendedAction; drivingSafety = f.drivingSafety.rawValue; confidence = f.confidence
+    }
+
+    /// Unknown stored values (written by a newer build) read back as the cautious default.
+    var domain: DashboardFinding {
+        DashboardFinding(
+            warningName: warningName, likelyCauses: likelyCauses,
+            severity: FindingSeverity(rawValue: severity) ?? .soon,
+            recommendedAction: recommendedAction,
+            drivingSafety: DrivingSafetyAssessment(rawValue: drivingSafety) ?? .unknown,
+            confidence: confidence
+        )
+    }
+}
+
+private struct DamageFindingDTO: Codable {
+    struct Cost: Codable { var low: Decimal; var high: Decimal; var currency: String; var basis: String; var confidence: Double }
+    var damageType: String
+    var severity: String
+    var suggestedRepair: String
+    var cosmeticRepairPossible: Bool?
+    var cost: Cost?
+
+    init(_ f: DamageFinding) {
+        damageType = f.damageType; severity = f.severity.rawValue; suggestedRepair = f.suggestedRepair
+        cosmeticRepairPossible = f.cosmeticRepairPossible
+        cost = f.estimatedCost.map {
+            Cost(low: $0.low.amount, high: $0.high.amount, currency: $0.low.currency.iso4217,
+                 basis: $0.basis.rawValue, confidence: $0.confidence)
+        }
+    }
+
+    var domain: DamageFinding {
+        DamageFinding(
+            damageType: damageType, severity: DamageSeverity(rawValue: severity) ?? .unknown,
+            suggestedRepair: suggestedRepair, cosmeticRepairPossible: cosmeticRepairPossible,
+            estimatedCost: cost.map {
+                CostEstimateRange(low: Money($0.low, CurrencyCode($0.currency)), high: Money($0.high, CurrencyCode($0.currency)),
+                                  basis: EstimateBasis(rawValue: $0.basis) ?? .aiEstimate, confidence: $0.confidence)
+            }
+        )
+    }
+}
+
+extension SDDashboardScan {
+    func apply(_ scan: DashboardScan) {
+        id = scan.id.raw
+        vehicleID = scan.vehicleID?.raw
+        imageRefData = JSONBox.encode(scan.imageRef)
+        findingsData = JSONBox.encode(scan.findings.map(DashboardFindingDTO.init))
+        summary = scan.summary
+        disclaimerKindRaw = scan.disclaimer.kind.rawValue
+        disclaimerVersion = scan.disclaimer.version
+        createdAt = scan.createdAt
+    }
+
+    var imageRef: FileRef? { JSONBox.decode(FileRef.self, from: imageRefData) }
+
+    var domain: DashboardScan {
+        DashboardScan(
+            id: DashboardScanID(raw: id), vehicleID: vehicleID.map { VehicleID(raw: $0) },
+            imageRef: imageRef ?? FileRef(relativePath: ""),
+            findings: (JSONBox.decode([DashboardFindingDTO].self, from: findingsData) ?? []).map(\.domain),
+            disclaimer: AIDisclaimer(kind: .notProfessionalDiagnostics, textKey: AIDisclaimer.dashboard.textKey, version: disclaimerVersion),
+            createdAt: createdAt, summary: summary
+        )
+    }
+}
+
+extension SDDamageAnalysis {
+    func apply(_ analysis: DamageAnalysis) {
+        id = analysis.id.raw
+        vehicleID = analysis.vehicleID.raw
+        imageRefsData = JSONBox.encode(analysis.imageRefs)
+        findingsData = JSONBox.encode(analysis.findings.map(DamageFindingDTO.init))
+        summary = analysis.summary
+        disclaimerVersion = analysis.disclaimer.version
+        createdAt = analysis.createdAt
+    }
+
+    var imageRefs: [FileRef] { JSONBox.decode([FileRef].self, from: imageRefsData) ?? [] }
+
+    var domain: DamageAnalysis {
+        DamageAnalysis(
+            id: DamageAnalysisID(raw: id), vehicleID: VehicleID(raw: vehicleID), imageRefs: imageRefs,
+            findings: (JSONBox.decode([DamageFindingDTO].self, from: findingsData) ?? []).map(\.domain),
+            disclaimer: AIDisclaimer(kind: .costEstimateOnly, textKey: AIDisclaimer.damage.textKey, version: disclaimerVersion),
+            createdAt: createdAt, summary: summary
+        )
+    }
+}

@@ -87,13 +87,22 @@ struct AppleAuthTests {
         #expect(try await provider.restoreSession() == nil)
     }
 
-    @Test("Signing out forgets the identity but is not an account deletion")
+    @Test("Signing out ends the session but keeps the details Apple sends only once")
     func signOut() async throws {
-        let stored = StoredAppleIdentity(userID: "001.abc", firstSignedInAt: clock.now)
+        let stored = StoredAppleIdentity(userID: "001.abc", email: "a@b.c", firstSignedInAt: clock.now)
         let (provider, store) = makeProvider(stored: stored)
 
         try await provider.signOut()
 
+        #expect(try await provider.restoreSession() == nil)
+        #expect(store.loaded()?.isSignedOut == true)
+        #expect(store.loaded()?.email == "a@b.c")
+    }
+
+    @Test("Deleting the account forgets the identity completely")
+    func deleteForgets() async throws {
+        let (provider, store) = makeProvider(stored: StoredAppleIdentity(userID: "001.abc", firstSignedInAt: clock.now))
+        try await provider.deleteAccount()
         #expect(store.loaded() == nil)
     }
 

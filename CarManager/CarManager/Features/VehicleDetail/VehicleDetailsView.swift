@@ -33,6 +33,7 @@ struct VehicleDetailsView: View {
             Task { await viewModel?.delete(vehicleID: vehicleID) }
         }
         .task { await load() }
+        .onChange(of: model?.vehicles.revision) { Task { await load() } }
         .onChange(of: model?.router.activeModal) { _, modal in
             if modal == nil { Task { await load() } }
         }

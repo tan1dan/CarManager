@@ -306,6 +306,107 @@ public struct CreateReminder: Sendable {
     }
 }
 
+/// "Done" on a reminder: records the completion and, when it repeats, starts the next period;
+/// a one-off reminder is switched off instead. Notifications are re-planned either way.
+public struct CompleteReminder: Sendable {
+    let reminders: any ReminderRepository
+    let odometer: any OdometerRepository
+    let notifications: any NotificationScheduling
+    let clock: any ClockProviding
+
+    public init(
+        reminders: any ReminderRepository, odometer: any OdometerRepository,
+        notifications: any NotificationScheduling, clock: any ClockProviding
+    ) {
+        self.reminders = reminders; self.odometer = odometer
+        self.notifications = notifications; self.clock = clock
+    }
+
+    @discardableResult
+    public func callAsFunction(id: ReminderID) async throws -> Reminder {
+        guard var reminder = try await reminders.reminder(id: id) else {
+            throw DomainError.persistence(.notFound)
+        }
+        let now = clock.now
+        let current = try await odometer.current(vehicleID: reminder.vehicleID)?.value
+        reminder = ReminderScheduler.complete(reminder, at: now, odometer: current, calendar: clock.calendar)
+        try await reminders.update(reminder)
+
+        let prefix = "reminder.\(reminder.id.raw.uuidString)"
+        await notifications.cancelAll(matching: prefix)
+        if reminder.isActive, await notifications.authorizationStatus() != .denied {
+            try? await notifications.schedule(NotificationPlanner.plan(for: reminder, now: now))
+        }
+        return reminder
+    }
+}
+
+/// PURE: what a reminder looks like after it was done at `date`.
+public enum ReminderScheduler {
+    public static func complete(_ reminder: Reminder, at date: Date, odometer: Odometer?, calendar: Calendar) -> Reminder {
+        var next = reminder
+        next.lastCompletedAt = date
+        next.lastCompletedOdometer = odometer
+        next.updatedAt = date
+
+        // Done early keeps the schedule (an insurance renewed two weeks ahead still runs a full
+        // year from its old expiry); done late restarts from the day it was actually done.
+        let previousDue: Date? = switch reminder.trigger {
+        case .date(let d), .whicheverFirst(let d, _): d.dueDate
+        case .mileage: nil
+        }
+        let anchor = max(previousDue ?? date, date)
+        let nextDate = nextDueDate(after: anchor, recurrence: reminder.recurrence, calendar: calendar)
+        let nextDistance: Distance? = switch reminder.recurrence {
+        case .everyDistance(let d), .both(_, let d): d
+        default: nil
+        }
+
+        switch reminder.trigger {
+        case .date:
+            if let nextDate { next.trigger = .date(DateTrigger(dueDate: nextDate)) } else { next.isActive = false }
+        case .mileage(var m):
+            if let interval = nextDistance ?? (reminder.recurrence == .none ? nil : m.intervalDistance) {
+                // Count from where the car is now; without a reading, from where it was due.
+                m.baselineOdometer = odometer ?? m.dueOdometer
+                m.intervalDistance = interval
+                next.trigger = .mileage(m)
+            } else {
+                next.isActive = false
+            }
+        case .whicheverFirst(_, var m):
+            if let nextDate {
+                m.baselineOdometer = odometer ?? m.dueOdometer
+                if let nextDistance { m.intervalDistance = nextDistance }
+                next.trigger = .whicheverFirst(DateTrigger(dueDate: nextDate), m)
+            } else {
+                next.isActive = false
+            }
+        }
+        return next
+    }
+
+    static func nextDueDate(after date: Date, recurrence: RecurrenceRule, calendar: Calendar) -> Date? {
+        switch recurrence {
+        case .everyMonths(let n), .both(let n, _):
+            return calendar.date(byAdding: .month, value: n, to: date)
+        case .everyYears(let n):
+            return calendar.date(byAdding: .year, value: n, to: date)
+        case .seasonal(let months):
+            // The first day of the next listed month after `date`.
+            for offset in 1...12 {
+                guard let candidate = calendar.date(byAdding: .month, value: offset, to: date) else { continue }
+                if months.contains(calendar.component(.month, from: candidate)) {
+                    return calendar.date(from: calendar.dateComponents([.year, .month], from: candidate))
+                }
+            }
+            return nil
+        case .none, .everyDistance:
+            return nil
+        }
+    }
+}
+
 /// Pure: reminder → plain notification values. All the hard parts (occurrence dates,
 /// identifiers, the 3-occurrence window) are unit-testable with no permissions and no waiting.
 public enum NotificationPlanner {

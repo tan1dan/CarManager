@@ -33,8 +33,9 @@ public enum VisionAnalysisRequest: Sendable {
 
 public enum VisionAnalysisResult: Sendable {
     case receipt(ReceiptDraft)
-    case dashboard([DashboardFinding])
-    case damage([DamageFinding])
+    /// `summary` is the model's one-line overview — and its explanation when nothing was found.
+    case dashboard([DashboardFinding], summary: String? = nil)
+    case damage([DamageFinding], summary: String? = nil)
 }
 
 /// One provider, three request types — receipt/dashboard/damage share transport, auth,

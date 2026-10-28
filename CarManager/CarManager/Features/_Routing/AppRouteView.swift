@@ -31,6 +31,7 @@ struct AppRouteView: View {
         case .aiChat(let id): AIChatView(conversationID: id)
         case .conversationHistory: ConversationHistoryView()
         case .aiInsightDetail(let id): AIInsightDetailsView(insightID: id)
+        case .scanHistory: ScanHistoryView()
         case .dashboardScanResult(let id): DashboardScanResultView(scanID: id)
         case .damageAnalysisResult(let id): DamageResultView(analysisID: id)
 

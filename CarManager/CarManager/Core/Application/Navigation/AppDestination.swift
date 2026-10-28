@@ -55,6 +55,18 @@ public enum SettingsSection: String, Hashable, Codable, Sendable, Identifiable, 
 public enum LegalDocument: String, Hashable, Codable, Sendable, Identifiable {
     case privacyPolicy, termsOfUse
     public var id: String { rawValue }
+
+    public var title: String { self == .privacyPolicy ? "Privacy Policy" : "Terms of Use" }
+
+    /// The published documents (Google Docs). `/preview` is the clean read-only view: no
+    /// editor toolbar and no sign-in prompt. The `…/edit?usp=sharing` links are the ones
+    /// given to App Store Connect; both show the same document.
+    public var url: URL {
+        switch self {
+        case .privacyPolicy: URL(string: "https://docs.google.com/document/d/1G9TCxclnqv2o3oS0gxEwZ1VO5cVWw0HNLJNOTIvbVig/preview")!
+        case .termsOfUse: URL(string: "https://docs.google.com/document/d/1dJBwDSBvPd1wmJA49rqFlJAotqU8TyIHjEOOeDGJo_Y/preview")!
+        }
+    }
 }
 
 public enum CameraPurpose: String, Hashable, Codable, Sendable {
@@ -94,6 +106,8 @@ public enum AppRoute: Hashable, Codable, Sendable {
     case aiChat(ConversationID?)
     case conversationHistory
     case aiInsightDetail(InsightID)
+    /// Every saved dashboard scan and damage analysis.
+    case scanHistory
     case dashboardScanResult(DashboardScanID)
     case damageAnalysisResult(DamageAnalysisID)
     // Alerts

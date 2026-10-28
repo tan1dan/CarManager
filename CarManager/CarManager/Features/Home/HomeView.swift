@@ -35,6 +35,7 @@ struct HomeView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
         .onChange(of: model?.vehicles.selected?.id) { Task { await load() } }
+        .onChange(of: model?.vehicles.revision) { Task { await load() } }
         // Stopgap until the repository change feed lands (architecture Phase 4): reload when
         // an editor sheet closes, since a new record may have been written.
         .onChange(of: model?.router.activeModal) { _, modal in
@@ -90,7 +91,12 @@ struct HomeView: View {
 
     @ViewBuilder
     private func content(for dashboard: HomeDashboard) -> some View {
-        VehicleSummaryCard(card: presentation.vehicle) {
+        VehicleSummaryCard(
+            card: presentation.vehicle,
+            switchOptions: (model?.vehicles.summaries ?? []).map { ($0.id, $0.displayName) },
+            selectedID: dashboard.vehicle.id,
+            onSelect: { id in Task { await model?.vehicles.select(id) } }
+        ) {
             model?.router.push(.vehicleDetail(dashboard.vehicle.id), in: .home)
         }
         .padding(.horizontal, DS.Layout.gutter)
@@ -209,17 +215,18 @@ struct HomeView: View {
 
 private struct VehicleSummaryCard: View {
     let card: HomePresentationModel.VehicleCard
+    /// Every garage car; with more than one, "My vehicle" becomes a switcher.
+    var switchOptions: [(VehicleID, String)] = []
+    var selectedID: VehicleID?
+    var onSelect: (VehicleID) -> Void = { _ in }
     let onTap: () -> Void
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
+        // Not a Button: the switcher menu sits inside the card and needs its own taps.
+        VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("My vehicle")
-                            .font(DS.Text.subheadline)
-                            .tracking(DS.Text.defaultTracking)
-                            .foregroundStyle(DS.Colors.onCardSecondary)
+                        switcher
                         Text(card.name)
                             .font(DS.Text.headline)
                             .tracking(DS.Text.headlineTracking)
@@ -258,8 +265,37 @@ private struct VehicleSummaryCard: View {
                             .strokeBorder(Color.white.opacity(0.051), lineWidth: DS.Layout.hairlineWidth)
                     )
             )
+            .contentShape(.rect)
+            .onTapGesture(perform: onTap)
+            .accessibilityElement(children: .contain)
+            .accessibilityAction(named: "Open vehicle", onTap)
+    }
+
+    @ViewBuilder
+    private var switcher: some View {
+        let label = HStack(spacing: 4) {
+            Text("My vehicle")
+            if switchOptions.count > 1 {
+                Image(systemName: "chevron.down").font(.system(size: 10, weight: .bold))
+            }
         }
-        .buttonStyle(.plain)
+        .font(DS.Text.subheadline)
+        .tracking(DS.Text.defaultTracking)
+        .foregroundStyle(DS.Colors.onCardSecondary)
+
+        if switchOptions.count > 1 {
+            Menu {
+                ForEach(switchOptions, id: \.0) { id, name in
+                    Button { onSelect(id) } label: {
+                        if id == selectedID { Label(name, systemImage: "checkmark") } else { Text(name) }
+                    }
+                }
+            } label: { label.contentShape(.rect) }
+            .accessibilityLabel("Switch vehicle")
+            .accessibilityIdentifier("homeVehicleSwitcher")
+        } else {
+            label
+        }
     }
 }
 

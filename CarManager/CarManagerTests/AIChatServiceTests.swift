@@ -5,8 +5,28 @@ import Foundation
 /// Answers every request made through its session with whatever `handler` returns, and keeps
 /// the requests so a test can inspect them. No real network, no OpenAI key.
 final class StubURLProtocol: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var handler: ((URLRequest) throws -> (Int, Data))?
-    nonisolated(unsafe) static var requests: [URLRequest] = []
+    typealias Handler = (URLRequest) throws -> (Int, Data)
+    // Keyed by host, so suites that run in parallel each get their own stub.
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var handlers: [String: Handler] = [:]
+    nonisolated(unsafe) private static var recorded: [String: [URLRequest]] = [:]
+    static let defaultHost = "example-ref.supabase.co"
+
+    static func setHandler(_ handler: Handler?, host: String = defaultHost) {
+        lock.withLock { handlers[host] = handler }
+    }
+    static func requests(host: String = defaultHost) -> [URLRequest] { lock.withLock { recorded[host] ?? [] } }
+    static func reset(host: String = defaultHost) { lock.withLock { recorded[host] = [] } }
+
+    /// The chat suite's original API, on the default host.
+    static var handler: Handler? {
+        get { lock.withLock { handlers[defaultHost] } }
+        set { setHandler(newValue) }
+    }
+    static var requests: [URLRequest] {
+        get { requests() }
+        set { lock.withLock { recorded[defaultHost] = newValue } }
+    }
 
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
@@ -24,9 +44,13 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
             }
             captured.httpBody = data
         }
-        Self.requests.append(captured)
+        let host = request.url?.host() ?? ""
+        let handler = Self.lock.withLock { () -> Handler? in
+            Self.recorded[host, default: []].append(captured)
+            return Self.handlers[host]
+        }
         do {
-            guard let handler = Self.handler else { throw URLError(.unknown) }
+            guard let handler else { throw URLError(.unknown) }
             let (status, data) = try handler(captured)
             let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: nil)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)

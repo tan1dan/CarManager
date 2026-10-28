@@ -194,10 +194,39 @@ final class SDNotification {
     init(id: UUID = UUID()) { self.id = id }
 }
 
+/// A dashboard warning-light scan. Findings are one JSON blob, like chat messages.
+@Model
+final class SDDashboardScan {
+    var id: UUID = UUID()
+    var vehicleID: UUID?
+    var imageRefData: Data?
+    var findingsData: Data?
+    var summary: String?
+    var disclaimerKindRaw: String = DisclaimerKind.notProfessionalDiagnostics.rawValue
+    var disclaimerVersion: Int = 1
+    var createdAt: Date = Date.distantPast
+
+    init(id: UUID = UUID()) { self.id = id }
+}
+
+/// A body-damage analysis. Belongs to a vehicle and goes with it when the vehicle is deleted.
+@Model
+final class SDDamageAnalysis {
+    var id: UUID = UUID()
+    var vehicleID: UUID = UUID()
+    var imageRefsData: Data?
+    var findingsData: Data?
+    var summary: String?
+    var disclaimerVersion: Int = 1
+    var createdAt: Date = Date.distantPast
+
+    init(id: UUID = UUID()) { self.id = id }
+}
+
 enum PersistenceSchema {
     static let models: [any PersistentModel.Type] = [
         SDVehicle.self, SDOdometerReading.self, SDFuelEntry.self, SDServiceRecord.self,
         SDExpense.self, SDReminder.self, SDDocument.self, SDConversation.self,
-        SDInsight.self, SDNotification.self
+        SDInsight.self, SDNotification.self, SDDashboardScan.self, SDDamageAnalysis.self
     ]
 }

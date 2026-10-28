@@ -2,18 +2,20 @@ import Foundation
 
 /// Display-ready values for the Garage screen (Figma node 3:4196).
 ///
-/// The design shows the primary vehicle as an expanded card and every other vehicle as a
-/// dimmed collapsed row, so the model splits them rather than making the view decide.
+/// Every vehicle is the same full card; the primary one leads and wears the "Primary" badge,
+/// the others offer "Make primary" in the same spot.
 struct GaragePresentationModel: Equatable, Sendable {
     var title: String
-    var primary: PrimaryCard?
-    var others: [CollapsedRow]
+    /// Primary first, then the rest in garage order.
+    var cards: [VehicleCard]
 
-    struct PrimaryCard: Equatable, Sendable {
+    var primary: VehicleCard? { cards.first(where: \.isPrimary) }
+
+    struct VehicleCard: Equatable, Sendable, Identifiable {
         var id: VehicleID
         var subtitle: String
         var name: String
-        var chip: String
+        var isPrimary: Bool
         var stats: [Stat]
     }
 
@@ -26,13 +28,7 @@ struct GaragePresentationModel: Equatable, Sendable {
         var unit: String?
     }
 
-    struct CollapsedRow: Equatable, Sendable, Identifiable {
-        var id: VehicleID
-        var subtitle: String
-        var name: String
-    }
-
-    static let empty = GaragePresentationModel(title: "Garage", primary: nil, others: [])
+    static let empty = GaragePresentationModel(title: "Garage", cards: [])
 }
 
 /// Pure mapping from `[VehicleSummary]` onto display values.
@@ -40,26 +36,23 @@ struct GarageFormatter: Sendable {
     let unitSystem: UnitSystem
 
     func makeModel(from summaries: [VehicleSummary]) -> GaragePresentationModel {
-        // The primary vehicle leads; if none is flagged the first is shown expanded so the
-        // screen never renders as a list of collapsed rows with no head.
+        // The primary vehicle leads; if none is flagged the first one is treated as primary.
         let primarySummary = summaries.first(where: \.isDefault) ?? summaries.first
         let others = summaries.filter { $0.id != primarySummary?.id }
 
         return GaragePresentationModel(
             title: "Garage",
-            primary: primarySummary.map(primaryCard),
-            others: others.map {
-                CollapsedRowBuilder.row(from: $0, subtitle: subtitle(for: $0))
-            }
+            cards: (primarySummary.map { [$0] } ?? []).map { card($0, isPrimary: true) }
+                + others.map { card($0, isPrimary: false) }
         )
     }
 
-    private func primaryCard(_ summary: VehicleSummary) -> GaragePresentationModel.PrimaryCard {
+    private func card(_ summary: VehicleSummary, isPrimary: Bool) -> GaragePresentationModel.VehicleCard {
         .init(
             id: summary.id,
             subtitle: subtitle(for: summary),
             name: summary.displayName,
-            chip: "Primary",
+            isPrimary: isPrimary,
             stats: [
                 .init(
                     caption: "MILEAGE",
@@ -102,10 +95,4 @@ struct GarageFormatter: Sendable {
         formatter.maximumFractionDigits = 0
         return formatter
     }()
-}
-
-private enum CollapsedRowBuilder {
-    static func row(from summary: VehicleSummary, subtitle: String) -> GaragePresentationModel.CollapsedRow {
-        .init(id: summary.id, subtitle: subtitle, name: summary.displayName)
-    }
 }

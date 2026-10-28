@@ -33,7 +33,6 @@ struct ProfilePresentationModel: Equatable, Sendable {
         enum Trailing: Equatable, Sendable {
             case chevron
             case value(String)
-            case darkModeToggle
         }
 
         var id: String
@@ -84,11 +83,12 @@ struct ProfileFormatter: Sendable {
     private func identity(authState: AuthState, isPremium: Bool) -> ProfilePresentationModel.Identity {
         switch authState {
         case .authenticated(let profile):
-            let name = profile.displayName ?? profile.email ?? "Signed in"
+            // Never the email as a name: with "Hide My Email" it is a random relay address.
+            let name = profile.needsDisplayName ? "Driver" : (profile.displayName ?? "Driver")
             return .init(
                 initials: Self.initials(from: name),
                 name: name,
-                subtitle: profile.email ?? "",
+                subtitle: profile.hasPrivateRelayEmail ? "Private email via Apple" : (profile.email ?? ""),
                 isPremium: isPremium,
                 badgeTitle: isPremium ? "PREMIUM" : "FREE"
             )
@@ -116,8 +116,6 @@ struct ProfileFormatter: Sendable {
                   trailing: .chevron, destination: .settings),
             .init(id: "language", symbolName: "globe", title: "Language",
                   trailing: .value(languageName), destination: .settingsSection(.language)),
-            .init(id: "appearance", symbolName: "moon", title: "Dark mode",
-                  trailing: .darkModeToggle, destination: nil),
             .init(id: "support", symbolName: "lifepreserver", title: "Support",
                   trailing: .chevron, destination: .supportSettings)
         ]

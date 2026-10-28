@@ -37,7 +37,8 @@ public extension AppRoute {
             RouteRequirements(requiredFeature: .aiChat)
         case .aiInsightDetail:
             RouteRequirements(requiredFeature: .aiInsights)
-        case .dashboardScanResult, .damageAnalysisResult:
+        // Saved results stay readable without Premium: they are the user's own history.
+        case .scanHistory, .dashboardScanResult, .damageAnalysisResult:
             .none
         case .settings, .settingsSection, .subscriptionSettings,
              .supportSettings, .legalSettings, .about:

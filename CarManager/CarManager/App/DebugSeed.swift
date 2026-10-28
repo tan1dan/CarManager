@@ -12,6 +12,10 @@ enum DebugSeed {
     }
 
     static func run(_ dependencies: AppDependencies) async {
+        if ProcessInfo.processInfo.arguments.contains("-seedDemo") {
+            await DemoSeed.run(dependencies)
+            return
+        }
         guard isRequested else { return }
         guard (try? await dependencies.vehicles.count()) == 0 else { return }
 
@@ -156,7 +160,7 @@ enum DebugSeed {
     }
 
     /// A one-page A4 PDF with a title and placeholder lines, so the viewer has something real to show.
-    private static func samplePDF(title: String) -> Data {
+    static func samplePDF(title: String) -> Data {
         let page = CGRect(x: 0, y: 0, width: 595, height: 842)
         return UIGraphicsPDFRenderer(bounds: page).pdfData { context in
             context.beginPage()
@@ -168,6 +172,120 @@ enum DebugSeed {
                 let width: CGFloat = row % 3 == 2 ? 260 : 483
                 UIBezierPath(roundedRect: CGRect(x: 56, y: 160 + CGFloat(row) * 34, width: width, height: 12), cornerRadius: 6).fill()
             }
+        }
+    }
+}
+
+/// `-seedDemo`: one car with three months of believable history, for screenshots and demos.
+/// 30 fill-ups, 5 service visits, a driver licence, expenses, reminders and an AI chat.
+enum DemoSeed {
+    static func run(_ d: AppDependencies) async {
+        guard (try? await d.vehicles.count()) == 0 else { return }
+        let now = d.clock.now, day: TimeInterval = 86_400
+        let start = now.addingTimeInterval(-90 * day)
+        let startKm = 27_850.0
+        // Like a real user: the car is added with today's mileage, history is entered after.
+        let todayKm = 37_410.0
+
+        guard let car = try? await CreateVehicle(vehicles: d.vehicles, odometer: d.odometer, reminders: d.reminders, clock: d.clock)(
+            VehicleDraft(brand: "Porsche", model: "Macan S Diesel", year: 2023, trim: "S", vin: "WP1ZZZ95ZPLB12345",
+                         licensePlate: "WX 4821K", fuelType: .diesel, initialOdometer: Odometer(kilometers: todayKm)),
+            vehicleLimit: nil
+        ).vehicle.id else { return }
+
+        // 30 full tanks, one every 3 days. Consumption drifts between 7.9 and 9.4 L/100 km:
+        // city weeks are thirstier, two motorway trips pull it down.
+        let addFuel = AddFuelEntry(fuel: d.fuel, odometer: d.odometer, clock: d.clock)
+        let stations = ["Orlen", "Shell V-Power", "BP", "Circle K", "Moya", "Orlen", "Amic"]
+        var km = startKm
+        for i in 0..<30 {
+            let distance = 230 + Double((i * 53) % 140) + (i == 9 || i == 22 ? 260 : 0)
+            let rate = [8.6, 8.9, 8.3, 9.1, 8.7, 8.2, 9.4, 8.8, 8.5, 7.9][i % 10] + (i >= 20 ? 0.2 : 0)
+            km += distance
+            let liters = (distance * rate / 100 * 10).rounded() / 10
+            let price = Decimal(6.19 + Double((i * 7) % 9) * 0.04)          // PLN-ish €/L feel, in EUR below
+            let date = start.addingTimeInterval(Double(i) * 3 * day + Double(i % 3) * 3_600 * 5)
+            _ = try? await addFuel(FuelEntryDraft(
+                vehicleID: car, date: date, odometer: Odometer(kilometers: km.rounded()),
+                volume: Volume(liters: liters),
+                totalCost: Money((price / 4.3 * Decimal(liters)).rounded(scale: 2), .eur),
+                fuelType: .diesel, station: stations[i % stations.count], isFullTank: true
+            ))
+        }
+
+        // Five workshop visits spread over the quarter.
+        let addService = AddServiceRecord(services: d.services, odometer: d.odometer, reminders: d.reminders, clock: d.clock)
+        let services: [(Double, Double, [ServiceItem], String, Decimal)] = [
+            (6, 28_120, [ServiceItem(type: .tires, name: "Winter tyres fitted")], "Vulco Warszawa", 95),
+            (24, 29_640, [ServiceItem(type: .oilChange, name: "Oil & filter change"), ServiceItem(type: .filters, name: "Cabin filter")], "Porsche Centrum Warszawa", 389),
+            (47, 31_470, [ServiceItem(type: .electrical, name: "Battery check & software update")], "Porsche Centrum Warszawa", 120),
+            (63, 32_880, [ServiceItem(type: .brakes, name: "Front brake pads", nature: .repair)], "AutoSerwis Mokotów", 410),
+            (81, 34_560, [ServiceItem(type: .other, name: "AdBlue top-up & wiper blades")], "AutoSerwis Mokotów", 64)
+        ]
+        for (offset, odo, items, workshop, cost) in services {
+            _ = try? await addService(vehicleID: car, date: start.addingTimeInterval(offset * day),
+                                      odometerValue: Odometer(kilometers: odo), items: items,
+                                      workshop: workshop, totalCost: Money(cost, .eur))
+        }
+
+        // Everyday costs.
+        let addExpense = AddExpense(expenses: d.expenses, odometer: d.odometer, clock: d.clock)
+        let expenses: [(String, ExpenseCategory, Decimal, Double)] = [
+            ("OC/AC insurance", .insurance, 1_180, 12), ("Car wash", .carWash, 18, 20), ("Parking Śródmieście", .parking, 36, 29),
+            ("Car wash", .carWash, 22, 44), ("A2 motorway toll", .other, 41, 27), ("Parking airport", .parking, 64, 66),
+            ("Car wash", .carWash, 18, 72), ("Phone mount", .accessories, 29, 55), ("A2 motorway toll", .other, 41, 68),
+            ("Parking Śródmieście", .parking, 24, 86)
+        ]
+        for (title, category, amount, offset) in expenses {
+            _ = try? await addExpense(vehicleID: car, title: title, category: category, cost: Money(amount, .eur),
+                                      date: start.addingTimeInterval(offset * day))
+        }
+
+        // Documents: the driver licence, plus the policy and inspection that go with the car.
+        let addDocument = AddDocument(documents: d.documents, files: d.files, clock: d.clock)
+        let documents: [(String, DocumentType, Date?)] = [
+            ("Driver licence", .driverLicense, now.addingTimeInterval(1_640 * day)),
+            ("OC/AC insurance policy", .insurance, now.addingTimeInterval(285 * day)),
+            ("Technical inspection", .technicalInspection, now.addingTimeInterval(19 * day))
+        ]
+        for (name, type, expiry) in documents {
+            _ = try? await addDocument(vehicleID: car, name: name, type: type, expirationDate: expiry,
+                                       fileData: DebugSeed.samplePDF(title: name))
+        }
+
+        // Reminders: mileage and date based, one due soon so Home has something to say.
+        // A spy scheduler: seeding must not stop at the system permission prompt.
+        let createReminder = CreateReminder(reminders: d.reminders, notifications: SpyNotificationScheduler(), clock: d.clock)
+        _ = try? await createReminder(vehicleID: car, title: "Oil change", kind: .oilChange,
+            trigger: .mileage(MileageTrigger(baselineOdometer: Odometer(kilometers: 29_640), intervalDistance: Distance(kilometers: 15_000))),
+            recurrence: .everyDistance(Distance(kilometers: 15_000)))
+        _ = try? await createReminder(vehicleID: car, title: "Technical inspection", kind: .technicalInspection,
+            trigger: .date(DateTrigger(dueDate: now.addingTimeInterval(19 * day))), recurrence: .everyYears(1),
+            leadTime: ReminderLeadTime(days: 30, distance: nil))
+        _ = try? await createReminder(vehicleID: car, title: "Tyre swap", kind: .tireChange,
+            trigger: .date(DateTrigger(dueDate: now.addingTimeInterval(160 * day))), recurrence: .seasonal(months: [4, 10]))
+        _ = try? await createReminder(vehicleID: car, title: "Insurance renewal", kind: .insurance,
+            trigger: .date(DateTrigger(dueDate: now.addingTimeInterval(285 * day))), recurrence: .everyMonths(12),
+            leadTime: ReminderLeadTime(days: 30, distance: nil))
+        _ = try? await createReminder(vehicleID: car, title: "Brake fluid", kind: .custom,
+            trigger: .date(DateTrigger(dueDate: now.addingTimeInterval(400 * day))), recurrence: .everyYears(2))
+
+        // One past AI conversation and a couple of inbox items.
+        let asked = now.addingTimeInterval(-6 * day)
+        try? await d.conversations.create(AIConversation(
+            vehicleID: car, title: "Why did consumption go up?",
+            messages: [
+                AIMessage(role: .user, text: "Why did my consumption go up from 8.3 to 9.4 L/100 km this month?", createdAt: asked),
+                AIMessage(role: .assistant, text: "On a 2023 Macan S Diesel the most common reasons are winter tyres and lower temperatures (often +5–10%), more short city trips, and a DPF regeneration cycle. Check tyre pressure first — winter tyres are often under-inflated after fitting.", createdAt: asked.addingTimeInterval(8))
+            ],
+            createdAt: asked, updatedAt: asked.addingTimeInterval(8)
+        ))
+        for (kind, title, body, age) in [
+            (NotificationKind.documentExpiring, "Technical inspection soon", "Due in 19 days", 0.2),
+            (.reminderDue, "Brake pads replaced", "Service record saved · AutoSerwis Mokotów", 27.0)
+        ] {
+            try? await d.inbox.insert(AppNotification(vehicleID: car, kind: kind, titleKey: title, bodyKey: body,
+                                                      createdAt: now.addingTimeInterval(-age * day)))
         }
     }
 }

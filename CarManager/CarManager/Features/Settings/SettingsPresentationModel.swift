@@ -30,7 +30,7 @@ struct SettingsPresentationModel: Equatable, Sendable {
     }
 
     enum ToggleKind: String, Equatable, Sendable {
-        case notifications, telemetry
+        case notifications
     }
 
     /// What tapping a row does. Kept as data so the row list is testable without a router.
@@ -38,8 +38,8 @@ struct SettingsPresentationModel: Equatable, Sendable {
         /// Tapping does nothing — the row only displays a value.
         case inert
         case push(AppRoute)
+        case present(ModalRoute)
         case openURL(URL)
-        case exportPDF
     }
 
     static let placeholder = SettingsPresentationModel(title: "Settings", sections: [])
@@ -90,7 +90,11 @@ struct SettingsFormatter: Sendable {
             // The only way in is Sign in with Apple, so there is no password to manage.
             .init(
                 id: "email", symbolName: "apple.logo", title: "Apple ID",
-                trailing: email.map { .value(truncatedEmail($0)) } ?? .value("Not signed in"),
+                // Apple may withhold the address ("Hide My Email" or a later sign-in); being
+                // signed in is what matters here.
+                trailing: .value(authState.profile?.hasPrivateRelayEmail == true
+                                 ? "Private email"
+                                 : email.map(truncatedEmail) ?? (authState.isAuthenticated ? "Signed in" : "Not signed in")),
                 action: .push(.settingsSection(.account))
             ),
             .init(
@@ -138,16 +142,6 @@ struct SettingsFormatter: Sendable {
             .init(
                 id: "icloud", symbolName: "icloud", title: "iCloud sync",
                 trailing: .value(syncDescription), action: .inert
-            ),
-            .init(
-                id: "export", symbolName: "square.and.arrow.down", title: "Export as PDF",
-                trailing: .chevron, action: .exportPDF
-            ),
-            // "Analytics" here is product telemetry, unrelated to the app's Analytics feature.
-            // It is a switch, not a read-only value, because it must be possible to opt out.
-            .init(
-                id: "telemetry", symbolName: "chart.line.uptrend.xyaxis", title: "Analytics",
-                trailing: .toggle(.telemetry), action: .inert
             )
         ]
     }
@@ -161,6 +155,14 @@ struct SettingsFormatter: Sendable {
             .init(
                 id: "support", symbolName: "lifepreserver", title: "Support",
                 trailing: .chevron, action: .push(.supportSettings)
+            ),
+            .init(
+                id: "privacy", symbolName: "hand.raised", title: "Privacy Policy",
+                trailing: .chevron, action: .present(.legal(.privacyPolicy))
+            ),
+            .init(
+                id: "terms", symbolName: "doc.text", title: "Terms of Use",
+                trailing: .chevron, action: .present(.legal(.termsOfUse))
             )
         ]
     }

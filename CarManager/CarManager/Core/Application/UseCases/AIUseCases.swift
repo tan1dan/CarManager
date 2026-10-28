@@ -328,13 +328,13 @@ public struct ScanDashboard: Sendable {
         let prepared = try await preprocessor.prepareForUpload(imageData)
         let ref = try await files.store(prepared, preferredName: "dashboard", kind: .scan)
         let result = try await vision.analyze(.dashboard(image: prepared, vehicleID: vehicleID))
-        guard case .dashboard(let findings) = result else {
+        guard case .dashboard(let findings, let summary) = result else {
             throw DomainError.ai(.structuredOutputInvalid)
         }
         // The disclaimer is non-optional on the result type: a result without one is
         // unrepresentable. No vehicle record is created from a scan.
         let scan = DashboardScan(
-            vehicleID: vehicleID, imageRef: ref, findings: findings, createdAt: clock.now
+            vehicleID: vehicleID, imageRef: ref, findings: findings, createdAt: clock.now, summary: summary
         )
         try await scans.insert(scan)
         return scan
@@ -365,14 +365,64 @@ public struct AnalyzeDamage: Sendable {
             refs.append(try await files.store(processed, preferredName: "damage", kind: .scan))
         }
         let result = try await vision.analyze(.damage(images: prepared, vehicleID: vehicleID))
-        guard case .damage(let findings) = result else {
+        guard case .damage(let findings, let summary) = result else {
             throw DomainError.ai(.structuredOutputInvalid)
         }
         // Findings carry a CostEstimateRange, never a scalar price.
         let analysis = DamageAnalysis(
-            vehicleID: vehicleID, imageRefs: refs, findings: findings, createdAt: clock.now
+            vehicleID: vehicleID, imageRefs: refs, findings: findings, createdAt: clock.now, summary: summary
         )
         try await scans.insert(analysis)
         return analysis
+    }
+}
+
+// MARK: - Scan history
+
+/// One line of history: a dashboard scan or a damage analysis, newest first.
+public enum ScanHistoryItem: Sendable, Equatable, Identifiable {
+    case dashboard(DashboardScan)
+    case damage(DamageAnalysis)
+
+    public var id: UUID {
+        switch self {
+        case .dashboard(let s): s.id.raw
+        case .damage(let a): a.id.raw
+        }
+    }
+
+    public var createdAt: Date {
+        switch self {
+        case .dashboard(let s): s.createdAt
+        case .damage(let a): a.createdAt
+        }
+    }
+}
+
+public struct ListScanHistory: Sendable {
+    let scans: any ScanRepository
+    public init(scans: any ScanRepository) { self.scans = scans }
+
+    public func callAsFunction(vehicleID: VehicleID? = nil, limit: Int? = nil) async throws -> [ScanHistoryItem] {
+        async let dashboard = scans.dashboardScans(vehicleID: vehicleID)
+        async let damage = scans.damageAnalyses(vehicleID: vehicleID)
+        let items = (try await dashboard).map(ScanHistoryItem.dashboard) + (try await damage).map(ScanHistoryItem.damage)
+        let sorted = items.sorted { $0.createdAt > $1.createdAt }
+        return limit.map { Array(sorted.prefix($0)) } ?? sorted
+    }
+}
+
+public struct DeleteScan: Sendable {
+    let scans: any ScanRepository
+    let files: any FileStorage
+    public init(scans: any ScanRepository, files: any FileStorage) { self.scans = scans; self.files = files }
+
+    /// The photos go with the scan.
+    public func callAsFunction(_ item: ScanHistoryItem) async throws {
+        let refs: [FileRef] = switch item {
+        case .dashboard(let s): try await scans.deleteDashboardScan(id: s.id)
+        case .damage(let a): try await scans.deleteDamageAnalysis(id: a.id)
+        }
+        for ref in refs { try? await files.delete(ref) }
     }
 }

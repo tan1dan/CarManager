@@ -181,3 +181,62 @@ public struct LoadHomeDashboard: Sendable {
         )
     }
 }
+
+/// "Delete account": erases everything the app stored for this person, then forgets the
+/// Apple identity. The store mirrors to the private iCloud database, so the deletions reach
+/// iCloud and the user's other devices too.
+///
+/// Order matters: documents first (their files are removed with them), then each vehicle with
+/// its records, then everything not tied to a vehicle. The identity goes last, so a failure
+/// part-way leaves the user signed in and able to try again.
+public struct DeleteAccount: Sendable {
+    let auth: any AuthProviding
+    let vehicles: any VehicleRepository
+    let documents: any DocumentRepository
+    let conversations: any AIConversationRepository
+    let inbox: any NotificationInboxRepository
+    let scans: (any ScanRepository)?
+    let files: any FileStorage
+    let notifications: any NotificationScheduling
+    let preferences: any PreferencesProviding
+
+    public init(
+        auth: any AuthProviding, vehicles: any VehicleRepository, documents: any DocumentRepository,
+        conversations: any AIConversationRepository, inbox: any NotificationInboxRepository,
+        scans: (any ScanRepository)? = nil,
+        files: any FileStorage, notifications: any NotificationScheduling, preferences: any PreferencesProviding
+    ) {
+        self.auth = auth; self.vehicles = vehicles; self.documents = documents
+        self.conversations = conversations; self.inbox = inbox; self.scans = scans; self.files = files
+        self.notifications = notifications; self.preferences = preferences
+    }
+
+    public func callAsFunction() async throws {
+        var orphaned: [FileRef] = []
+        for document in try await documents.query(DocumentQuery()) {
+            orphaned += try await documents.delete(id: document.id)
+        }
+        for vehicle in try await vehicles.all() {
+            orphaned += try await vehicles.delete(id: vehicle.id)
+        }
+        for conversation in try await conversations.summaries(vehicleID: nil) {
+            orphaned += try await conversations.delete(id: conversation.id)
+        }
+        if let scans {
+            for scan in try await scans.dashboardScans(vehicleID: nil) {
+                orphaned += try await scans.deleteDashboardScan(id: scan.id)
+            }
+            for analysis in try await scans.damageAnalyses(vehicleID: nil) {
+                orphaned += try await scans.deleteDamageAnalysis(id: analysis.id)
+            }
+        }
+        try await inbox.clearAll()
+        for ref in orphaned { try? await files.delete(ref) }
+
+        await notifications.cancelAll(matching: "")
+        preferences.defaultVehicleID = nil
+        preferences.acknowledgedDisclaimerVersions = []
+
+        try await auth.deleteAccount()
+    }
+}

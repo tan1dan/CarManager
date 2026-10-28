@@ -11,6 +11,9 @@ public final class SelectedVehicleStore {
     public private(set) var summaries: [VehicleSummary] = []
     public private(set) var selected: Vehicle?
     public private(set) var state: LoadState = .loading
+    /// Bumped after every reload. Screens that read records straight from repositories watch
+    /// it, so a change that arrives from iCloud (or anywhere else) reaches them too.
+    public private(set) var revision = 0
 
     private let vehicles: any VehicleRepository
     private let preferences: any PreferencesProviding
@@ -30,6 +33,7 @@ public final class SelectedVehicleStore {
             summaries = try await vehicles.summaries()
             selected = try await resolveSelection()
             state = .loaded
+            revision += 1
         } catch {
             state = .failed(String(describing: error))
         }
@@ -50,8 +54,11 @@ public final class SelectedVehicleStore {
         return all.sorted { $0.updatedAt > $1.updatedAt }.first
     }
 
+    /// Makes `id` the active car everywhere: Home, the Garage's "Primary" and other devices
+    /// (the flag syncs through iCloud, the preference only covers this one).
     public func select(_ id: VehicleID) async {
         preferences.defaultVehicleID = id
+        try? await vehicles.setDefault(id: id)
         selected = try? await vehicles.vehicle(id: id)
         await refresh()
     }

@@ -100,4 +100,10 @@ public protocol ScanRepository: Sendable {
     func dashboardScan(id: DashboardScanID) async throws -> DashboardScan?
     func insert(_ analysis: DamageAnalysis) async throws
     func damageAnalysis(id: DamageAnalysisID) async throws -> DamageAnalysis?
+    /// Newest first. `nil` lists every scan, including those made without a vehicle.
+    func dashboardScans(vehicleID: VehicleID?) async throws -> [DashboardScan]
+    func damageAnalyses(vehicleID: VehicleID?) async throws -> [DamageAnalysis]
+    /// Return the photo files that now belong to nothing.
+    func deleteDashboardScan(id: DashboardScanID) async throws -> [FileRef]
+    func deleteDamageAnalysis(id: DamageAnalysisID) async throws -> [FileRef]
 }

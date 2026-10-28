@@ -104,14 +104,12 @@ struct SettingsView: View {
                 guard let preferences = model?.dependencies.preferences else { return false }
                 return switch kind {
                 case .notifications: preferences.notificationsEnabled
-                case .telemetry: preferences.telemetryEnabled
                 }
             },
             set: { newValue in
                 guard let preferences = model?.dependencies.preferences else { return }
                 switch kind {
                 case .notifications: preferences.notificationsEnabled = newValue
-                case .telemetry: preferences.telemetryEnabled = newValue
                 }
                 viewModel?.refresh()
             }
@@ -125,10 +123,10 @@ struct SettingsView: View {
             break
         case .push(let route):
             model.router.push(route, in: .profile)
+        case .present(let modal):
+            model.router.present(modal)
         case .openURL(let url):
             openURL(url)
-        case .exportPDF:
-            Task { await viewModel?.exportPDF(vehicleID: model.selectedVehicleID) }
         }
     }
 
@@ -149,9 +147,6 @@ struct SettingsView: View {
                 ),
                 preferences: model.dependencies.preferences,
                 authStore: model.auth,
-                featureGate: model.featureGate,
-                exportPDF: ExportVehicleHistoryPDF(exporter: model.dependencies.exporter),
-                router: model.router,
                 syncStore: model.sync
             )
         }

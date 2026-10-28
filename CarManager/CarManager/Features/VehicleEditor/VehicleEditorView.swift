@@ -43,7 +43,8 @@ struct VehicleEditorView: View {
                 vehicleStore: model.vehicles,
                 featureGate: model.featureGate,
                 router: model.router,
-                clock: model.dependencies.clock
+                clock: model.dependencies.clock,
+                defaultCurrency: model.dependencies.preferences.defaultCurrency
             )
             viewModel = created
             await created.prepare()

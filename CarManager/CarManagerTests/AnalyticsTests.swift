@@ -227,3 +227,41 @@ struct YearlyCostsTests {
         #expect(try await d.odometer.readings(vehicleID: id).allSatisfy { $0.source != .expense(expense.id) })
     }
 }
+
+@Suite("Vehicle store refresh")
+@MainActor
+struct VehicleStoreRefreshTests {
+    private let clock = FixedClock()
+
+    @Test("A car that arrives after launch (an iCloud import) reaches Home after a refresh")
+    func importedVehicleAppearsAfterRefresh() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        let app = AppModel(dependencies: dependencies)
+        await app.vehicles.bootstrap()
+        #expect(app.vehicles.selected == nil)
+        let before = app.vehicles.revision
+
+        // Written straight to the repository, as the CloudKit importer does.
+        let imported = Vehicle(brand: "Audi", model: "A4", fuelType: .diesel, primaryCurrency: .eur,
+                               isDefault: true, createdAt: clock.now, updatedAt: clock.now)
+        try await dependencies.vehicles.insert(imported)
+        #expect(app.vehicles.selected == nil)   // stale until told
+
+        await app.vehicles.refresh()
+        #expect(app.vehicles.selected?.id == imported.id)
+        #expect(app.vehicles.summaries.count == 1)
+        #expect(app.vehicles.revision > before)
+    }
+
+    @Test("A stored default that no longer exists falls back to an existing car")
+    func staleDefaultFallsBack() async throws {
+        let dependencies = makeDependencies(clock: clock)
+        dependencies.preferences.defaultVehicleID = VehicleID()   // from a previous install
+        let car = Vehicle(brand: "VW", model: "Golf", fuelType: .petrol, primaryCurrency: .eur,
+                          isDefault: false, createdAt: clock.now, updatedAt: clock.now)
+        try await dependencies.vehicles.insert(car)
+        let app = AppModel(dependencies: dependencies)
+        await app.vehicles.bootstrap()
+        #expect(app.vehicles.selected?.id == car.id)
+    }
+}

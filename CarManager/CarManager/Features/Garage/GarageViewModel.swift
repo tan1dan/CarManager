@@ -17,7 +17,8 @@ final class GarageViewModel {
     }
 
     func load() async {
-        state = .loading
+        // Reloads keep the list on screen; only the first load shows a spinner.
+        if case .loaded = state {} else { state = .loading }
         do {
             let summaries = try await loadGarage()
             presentation = formatter.makeModel(from: summaries)

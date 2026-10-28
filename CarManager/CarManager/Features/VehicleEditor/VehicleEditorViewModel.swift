@@ -26,7 +26,7 @@ final class VehicleEditorViewModel {
         mode: VehicleEditorMode, createVehicle: CreateVehicle, updateVehicle: UpdateVehicle,
         loadCatalog: LoadVehicleCatalog, vehicles: any VehicleRepository,
         vehicleStore: SelectedVehicleStore, featureGate: FeatureGate, router: AppRouter,
-        clock: any ClockProviding
+        clock: any ClockProviding, defaultCurrency: CurrencyCode = .eur
     ) {
         self.mode = mode
         self.createVehicle = createVehicle
@@ -37,6 +37,8 @@ final class VehicleEditorViewModel {
         self.featureGate = featureGate
         self.router = router
         self.clock = clock
+        // A new car keeps its money in the currency chosen in Settings.
+        self.draft.primaryCurrency = defaultCurrency
     }
 
     var isCreating: Bool { if case .create = mode { return true }; return false }
@@ -107,9 +109,9 @@ final class VehicleEditorViewModel {
                 // The limit is resolved here and passed IN, so the use case stays free of
                 // StoreKit and of @MainActor state.
                 let output = try await createVehicle(draft, vehicleLimit: featureGate.vehicleLimit())
-                await vehicleStore.refresh()
-                // The first vehicle becomes the active one.
-                if output.becameDefault { await vehicleStore.select(output.vehicle.id) }
+                // The car just added is the one the user wants to see next, so it becomes
+                // the active one on Home (and "Primary" in the Garage).
+                await vehicleStore.select(output.vehicle.id)
                 state = .loaded(output.vehicle)
 
             case .edit:

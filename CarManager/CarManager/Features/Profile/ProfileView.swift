@@ -213,16 +213,6 @@ struct ProfileView: View {
             SettingsRowChevron()
         case .value(let text):
             SettingsRowValue(text: text)
-        case .darkModeToggle:
-            // The app is dark-only today; this persists the preference so the switch is not
-            // decorative, but there is no light theme for it to switch to yet.
-            Toggle("", isOn: Binding(
-                get: { model?.dependencies.preferences.appearance != .light },
-                set: { model?.dependencies.preferences.appearance = $0 ? .dark : .light }
-            ))
-            .labelsHidden()
-            .tint(DS.Colors.accent)
-            .accessibilityIdentifier("profileDarkModeToggle")
         }
     }
 

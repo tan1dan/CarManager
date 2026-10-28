@@ -624,6 +624,8 @@ struct ConfirmDialog: ViewModifier {
     let title: String
     let message: String
     let confirmTitle: String
+    /// `.danger` for destructive actions; `.accent` for an informed choice that loses nothing.
+    var tone: Tone = .danger
     let onConfirm: () -> Void
 
     func body(content: Content) -> some View {
@@ -637,9 +639,9 @@ struct ConfirmDialog: ViewModifier {
                     VStack(spacing: 0) {
                         Image(systemName: symbol)
                             .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(DS.Colors.danger)
+                            .foregroundStyle(tone.color)
                             .frame(width: 48, height: 48)
-                            .background(Circle().fill(DS.Colors.danger.opacity(0.149)))
+                            .background(Circle().fill(tone.color.opacity(0.149)))
                             .padding(.bottom, 14)
                         Text(title)
                             .font(.system(size: 18, weight: .bold))
@@ -661,7 +663,7 @@ struct ConfirmDialog: ViewModifier {
                                 .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 48)
-                                .background(Capsule().fill(DS.Colors.danger))
+                                .background(Capsule().fill(tone == .danger ? AnyShapeStyle(DS.Colors.danger) : AnyShapeStyle(DS.Gradients.accentButton)))
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("confirmDestructive")
@@ -686,9 +688,9 @@ struct ConfirmDialog: ViewModifier {
 extension View {
     func confirmDialog(
         isPresented: Binding<Bool>, symbol: String = "exclamationmark.shield", title: String,
-        message: String, confirmTitle: String, onConfirm: @escaping () -> Void
+        message: String, confirmTitle: String, tone: Tone = .danger, onConfirm: @escaping () -> Void
     ) -> some View {
         modifier(ConfirmDialog(isPresented: isPresented, symbol: symbol, title: title,
-                               message: message, confirmTitle: confirmTitle, onConfirm: onConfirm))
+                               message: message, confirmTitle: confirmTitle, tone: tone, onConfirm: onConfirm))
     }
 }

@@ -34,6 +34,10 @@ struct AIChatView: View {
                 )
             }
             await viewModel?.load()
+            if conversationID == nil, let question = model.pendingAIQuestion {
+                model.pendingAIQuestion = nil
+                viewModel?.composerText = question
+            }
         }
         // Leaving the screen cancels the stream; the partial answer is kept, never discarded.
         .onDisappear { viewModel?.cancel() }
@@ -80,7 +84,13 @@ private struct AIChatContentView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            CircleBackButton(action: onBack)
+            // One tap always leaves: drop the keyboard and any running answer first.
+            CircleBackButton {
+                composerFocused = false
+                viewModel.cancel()
+                onBack()
+            }
+            .accessibilityIdentifier("aiChatBack")
             Image(systemName: "sparkles")
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)

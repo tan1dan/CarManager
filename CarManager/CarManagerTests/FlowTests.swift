@@ -516,15 +516,16 @@ struct ProfileTests {
         #expect(model.identity.badgeTitle == "FREE")
     }
 
-    @Test("Initials fall back to the email when no display name exists")
-    func initialsFromEmail() {
+    @Test("Without a display name the profile says Driver — never the email as a name")
+    func noNameFallback() {
         let model = formatter.makeModel(
             authState: profile(name: nil, email: "alex@carassistant.app"),
             entitlement: .free, isPremium: false, statistics: .empty
         )
 
-        #expect(model.identity.name == "alex@carassistant.app")
-        #expect(model.identity.initials == "A")
+        #expect(model.identity.name == "Driver")
+        #expect(model.identity.initials == "D")
+        #expect(model.identity.subtitle == "alex@carassistant.app")
     }
 
     @Test("The stat labels are singular for one vehicle and plural otherwise", arguments: [
@@ -613,7 +614,7 @@ struct SettingsScreenTests {
 
     @Test("Every designed row is present", arguments: [
         "email", "subscription", "payment", "units", "region", "timezone",
-        "notifications", "icloud", "export", "telemetry", "version", "support"
+        "notifications", "icloud", "version", "support"
     ])
     func rowsPresent(_ id: String) {
         let ids = model().sections.flatMap(\.rows).map(\.id)
@@ -664,8 +665,7 @@ struct SettingsScreenTests {
     }
 
     @Test("The boolean preferences are switches", arguments: [
-        ("notifications", SettingsPresentationModel.ToggleKind.notifications),
-        ("telemetry", .telemetry)
+        ("notifications", SettingsPresentationModel.ToggleKind.notifications)
     ])
     func togglesAreSwitches(_ input: (id: String, kind: SettingsPresentationModel.ToggleKind)) {
         let row = model().sections.flatMap(\.rows).first { $0.id == input.id }
@@ -686,14 +686,10 @@ struct SettingsScreenTests {
         #expect(row?.action == SettingsPresentationModel.Action.inert)
     }
 
-    @Test("PDF export is its own action so it can be premium-gated before a file is produced")
-    func exportIsGatedAction() {
-        let row = model().sections.flatMap(\.rows).first { $0.id == "export" }
-        #expect(row?.action == .exportPDF)
-        #expect(FeatureGating.evaluate(
-            .pdfExport, entitlement: .free, usage: .available(now: clock.now),
-            vehicleCount: 1, now: clock.now
-        ) == .locked(.requiresPremium))
+    @Test("Removed rows stay removed: no PDF export, no analytics switch")
+    func removedRows() {
+        let ids = model().sections.flatMap(\.rows).map(\.id)
+        #expect(!ids.contains("export") && !ids.contains("telemetry"))
     }
 
     @Test("Every pushed Settings destination is reachable through the guard")

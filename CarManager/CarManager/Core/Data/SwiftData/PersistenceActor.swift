@@ -109,6 +109,15 @@ actor PersistenceActor {
         try modelContext.delete(model: SDReminder.self, where: #Predicate { $0.vehicleID == raw })
         try modelContext.delete(model: SDDocument.self, where: #Predicate { $0.vehicleID == raw })
         try modelContext.delete(model: SDInsight.self, where: #Predicate { $0.vehicleID == raw })
+        // Damage analyses are about this car's body; their photos go with them. Dashboard
+        // scans are kept (like chats) and only lose the link.
+        for analysis in try fetchAll(#Predicate<SDDamageAnalysis> { $0.vehicleID == raw }) {
+            orphaned += analysis.imageRefs
+            modelContext.delete(analysis)
+        }
+        for scan in try fetchAll(#Predicate<SDDashboardScan> { $0.vehicleID == raw }) {
+            scan.vehicleID = nil
+        }
         // Nullify, not cascade: a chat is a user asset and outlives the car it discussed.
         for conversation in try fetchAll(#Predicate<SDConversation> { $0.vehicleID == raw }) {
             conversation.vehicleID = nil
@@ -165,7 +174,7 @@ actor PersistenceActor {
         let raw = vehicleID.raw
         return try fetchAll(
             #Predicate<SDFuelEntry> { $0.vehicleID == raw },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
+            sortBy: [SortDescriptor(\.date, order: .reverse), SortDescriptor(\.kilometers, order: .reverse)]
         ).map(\.domain)
     }
 
@@ -416,6 +425,62 @@ actor PersistenceActor {
         guard let conversation = try fetchOne(#Predicate<SDConversation> { $0.id == raw }) else { return [] }
         let refs = conversation.messages.flatMap(\.attachments)
         modelContext.delete(conversation)
+        try save()
+        return refs
+    }
+
+    // MARK: - Vision scans
+
+    func saveDashboardScan(_ scan: DashboardScan) throws {
+        let raw = scan.id.raw
+        try upsert(raw, #Predicate<SDDashboardScan> { $0.id == raw }, make: { SDDashboardScan(id: raw) }) { $0.apply(scan) }
+    }
+
+    func dashboardScan(id: DashboardScanID) throws -> DashboardScan? {
+        let raw = id.raw
+        return try fetchOne(#Predicate<SDDashboardScan> { $0.id == raw })?.domain
+    }
+
+    func dashboardScans(vehicleID: VehicleID?) throws -> [DashboardScan] {
+        let sort = [SortDescriptor<SDDashboardScan>(\.createdAt, order: .reverse)]
+        if let raw = vehicleID?.raw {
+            return try fetchAll(#Predicate<SDDashboardScan> { $0.vehicleID == raw }, sortBy: sort).map(\.domain)
+        }
+        return try fetchAll(sortBy: sort).map(\.domain)
+    }
+
+    func deleteDashboardScan(id: DashboardScanID) throws -> [FileRef] {
+        let raw = id.raw
+        guard let scan = try fetchOne(#Predicate<SDDashboardScan> { $0.id == raw }) else { return [] }
+        let refs = scan.imageRef.map { [$0] } ?? []
+        modelContext.delete(scan)
+        try save()
+        return refs
+    }
+
+    func saveDamageAnalysis(_ analysis: DamageAnalysis) throws {
+        let raw = analysis.id.raw
+        try upsert(raw, #Predicate<SDDamageAnalysis> { $0.id == raw }, make: { SDDamageAnalysis(id: raw) }) { $0.apply(analysis) }
+    }
+
+    func damageAnalysis(id: DamageAnalysisID) throws -> DamageAnalysis? {
+        let raw = id.raw
+        return try fetchOne(#Predicate<SDDamageAnalysis> { $0.id == raw })?.domain
+    }
+
+    func damageAnalyses(vehicleID: VehicleID?) throws -> [DamageAnalysis] {
+        let sort = [SortDescriptor<SDDamageAnalysis>(\.createdAt, order: .reverse)]
+        if let raw = vehicleID?.raw {
+            return try fetchAll(#Predicate<SDDamageAnalysis> { $0.vehicleID == raw }, sortBy: sort).map(\.domain)
+        }
+        return try fetchAll(sortBy: sort).map(\.domain)
+    }
+
+    func deleteDamageAnalysis(id: DamageAnalysisID) throws -> [FileRef] {
+        let raw = id.raw
+        guard let analysis = try fetchOne(#Predicate<SDDamageAnalysis> { $0.id == raw }) else { return [] }
+        let refs = analysis.imageRefs
+        modelContext.delete(analysis)
         try save()
         return refs
     }

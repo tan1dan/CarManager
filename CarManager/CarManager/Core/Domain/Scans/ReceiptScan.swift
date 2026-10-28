@@ -24,8 +24,47 @@ public struct FieldSuggestion<T: Hashable & Sendable>: Hashable, Sendable {
     }
 }
 
+/// How an amount printed in one currency was brought into the car's currency. The rate is
+/// a real published one (ECB or a market feed), never estimated by the model.
+public struct CurrencyConversion: Hashable, Sendable {
+    public enum Status: String, Hashable, Sendable {
+        /// The receipt is in the car's currency already.
+        case sameCurrency
+        case converted
+        /// No rate could be found: the user has to type the amount in the car's currency.
+        case rateUnavailable
+        /// The receipt's currency could not be read.
+        case unknownCurrency
+    }
+    public let status: Status
+    public let from: CurrencyCode?
+    public let to: CurrencyCode
+    public let rate: Decimal?
+    public let rateDate: String?
+    public let source: String?
+
+    public init(status: Status, from: CurrencyCode?, to: CurrencyCode, rate: Decimal? = nil,
+                rateDate: String? = nil, source: String? = nil) {
+        self.status = status; self.from = from; self.to = to
+        self.rate = rate; self.rateDate = rateDate; self.source = source
+    }
+}
+
+/// What the reader noticed that a person should know before saving.
+public enum ReceiptWarning: String, Hashable, Sendable, CaseIterable {
+    case blurry, cutOff = "cut_off", handwritten, faded, multipleReceipts = "multiple_receipts", refund
+    case mathMismatch = "math_mismatch", tipIncluded = "tip_included", foreignCurrency = "foreign_currency"
+    case notCarRelated = "not_car_related", partialPayment = "partial_payment", unreadable
+    /// The server could not be reached, so the receipt was read on the device only.
+    case readOnDevice = "read_on_device"
+}
+
 public struct ReceiptDraft: Hashable, Sendable {
     public var suggestedRecordKind: RecordKind
+    /// The total exactly as printed, in the receipt's own currency.
+    public var originalTotal: Money?
+    public var conversion: CurrencyConversion?
+    public var warnings: Set<ReceiptWarning> = []
     public var vendor: FieldSuggestion<String>
     public var date: FieldSuggestion<Date>
     public var total: FieldSuggestion<Money>

@@ -79,13 +79,15 @@ public extension AppDependencies {
             print("⚠️ iCloud mirroring is off, data stays on this device. Reason: \(reason)")
         }
         let store = PersistenceActor(modelContainer: container)
-        // Scans are NOT persisted: a receipt scan lives only until the user confirms or
-        // discards it, and nothing extracted may be written without that confirmation.
+        // Receipt scans are NOT persisted: one lives only until the user confirms or discards
+        // it, and nothing extracted may be written without that confirmation. Dashboard scans
+        // and damage analyses are history, and are kept.
         let scratch = InMemoryStore()
         let vehicles = SwiftDataVehicleRepository(store: store)
+        let odometer = SwiftDataOdometerRepository(store: store)
         return AppDependencies(
             vehicles: vehicles,
-            odometer: SwiftDataOdometerRepository(store: store),
+            odometer: odometer,
             fuel: SwiftDataFuelRepository(store: store),
             services: SwiftDataServiceRepository(store: store),
             expenses: SwiftDataExpenseRepository(store: store),
@@ -94,11 +96,16 @@ public extension AppDependencies {
             conversations: SwiftDataAIConversationRepository(store: store),
             insights: SwiftDataAIInsightRepository(store: store),
             inbox: SwiftDataNotificationInboxRepository(store: store),
-            scans: InMemoryScanRepository(store: scratch),
+            scans: SwiftDataScanRepository(store: store, receipts: InMemoryScanRepository(store: scratch)),
             auth: makeAuthProvider(clock: clock),
             subscriptions: makeSubscriptions(clock: clock),
             ai: makeAIProvider(),
-            vision: OnDeviceVisionAnalysisProvider(vehicles: vehicles, clock: clock),
+            vision: HybridVisionAnalysisProvider(
+                vehicles: vehicles, odometer: odometer,
+                remote: AIServiceConfiguration.fromBundle().map { CarVisionService(configuration: $0) },
+                receipts: AIServiceConfiguration.fromBundle().map { CarReceiptService(configuration: $0) },
+                clock: clock
+            ),
             textRecognizer: VisionTextRecognizer(),
             imagePreprocessor: JPEGImagePreprocessor(),
             files: DiskFileStorage(),
@@ -107,7 +114,9 @@ public extension AppDependencies {
             preferences: preferences,
             syncStatus: CloudKitSyncStatusProvider(mode: mode),
             connectivity: AlwaysOnlineConnectivity(),
-            telemetry: ConsoleTelemetry(isEnabled: preferences.telemetryEnabled),
+            // Always on: there is no opt-out switch any more. ConsoleTelemetry only logs locally;
+            // a real analytics backend must be declared in the App Store privacy labels.
+            telemetry: ConsoleTelemetry(isEnabled: true),
             clock: clock,
             ids: UUIDGenerator(),
             vehicleCatalog: BundledVehicleCatalog()
@@ -198,10 +207,13 @@ extension AppDependencies {
         // no way into a shipped build without a real Apple account.
         if ProcessInfo.processInfo.arguments.contains("-debugSignedIn") {
             return AppleAuthProvider(
-                identityStore: InMemoryAppleIdentityStore(StoredAppleIdentity(
-                    userID: "debug.user", displayName: "Alex Lindström",
-                    email: "alex@example.com", firstSignedInAt: clock.now
-                )),
+                // `-debugNoName` behaves like "Hide My Email": no name, a relay address.
+                identityStore: InMemoryAppleIdentityStore(
+                    ProcessInfo.processInfo.arguments.contains("-debugNoName")
+                    ? StoredAppleIdentity(userID: "debug.user", email: "x7k2p9q4@privaterelay.appleid.com", firstSignedInAt: clock.now)
+                    : StoredAppleIdentity(userID: "debug.user", displayName: "Alex Lindström",
+                                          email: "alex@example.com", firstSignedInAt: clock.now)
+                ),
                 credentialState: AlwaysAuthorizedCredentialState(),
                 clock: clock
             )

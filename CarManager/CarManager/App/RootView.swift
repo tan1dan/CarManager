@@ -28,6 +28,8 @@ struct RootView: View {
                 .onChange(of: model.auth.state.isAuthenticated) { _, isAuthenticated in
                     if isAuthenticated {
                         model.onboarding.complete()
+                        // The garage may have arrived from iCloud while the user was signed out.
+                        Task { await model.vehicles.refresh() }
                     } else {
                         model.router.resetForSignOut()
                     }
@@ -44,6 +46,9 @@ struct RootView: View {
             // The splash blocks only until session restoration settles; the garage does not
             // wait for the network.
             LaunchPlaceholderView()
+        case .authenticated(let profile) where profile.needsDisplayName:
+            // Apple shared no name: ask once, so the app never greets someone by a relay address.
+            NameEntryView()
         case .authenticated:
             RootTabView()
         case .anonymous, .signedOut:

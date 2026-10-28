@@ -89,6 +89,8 @@ public enum AIError: Error, Sendable, Equatable {
     /// The build carries no assistant endpoint (see `AIServiceConfiguration`).
     case notConfigured
     case messageTooLong(maxCharacters: Int)
+    /// The photo is not a receipt or an invoice.
+    case notAReceipt
 }
 
 public enum DocumentError: Error, Sendable, Equatable {
