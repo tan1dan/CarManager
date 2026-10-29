@@ -236,6 +236,7 @@ extension AppDependencies {
         return AppleAuthProvider(
             identityStore: KeychainAppleIdentityStore(),
             credentialState: SystemAppleCredentialState(),
+            revoker: AIServiceConfiguration.fromBundle().map { AppleAuthorizationRevoker(configuration: $0) },
             clock: clock
         )
     }

@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import CloudKit
+import CoreData
 
 /// How the store ended up being opened. The UI needs this: a user whose data is not syncing
 /// deserves to be told, not left guessing.
@@ -30,6 +31,12 @@ enum PersistenceContainer {
             let container = try! ModelContainer(for: schema, configurations: [configuration])
             return (container, .inMemory)
         }
+
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-initCloudKitSchema") {
+            initializeCloudKitSchema()
+        }
+        #endif
 
         // 1. The real thing: on disk, mirrored to CloudKit.
         do {
@@ -62,6 +69,52 @@ enum PersistenceContainer {
         }
     }
 }
+
+#if DEBUG
+extension PersistenceContainer {
+    /// Creates every record type, with every field, in the container's DEVELOPMENT
+    /// environment — without having to enter one of each kind of record by hand. Apple's
+    /// documented route for SwiftData: build the same model as Core Data, let
+    /// `NSPersistentCloudKitContainer` push the schema, then close that store before SwiftData
+    /// opens it.
+    ///
+    /// Run once from Xcode with the `-initCloudKitSchema` launch argument, on a device or
+    /// simulator signed in to iCloud, then deploy the schema to Production in the CloudKit
+    /// Console. DEBUG only: a shipped build never touches the schema.
+    static func initializeCloudKitSchema() {
+        let configuration = ModelConfiguration(schema: Schema(PersistenceSchema.models), cloudKitDatabase: .private(cloudKitContainerID))
+        autoreleasepool {
+            guard let model = NSManagedObjectModel.makeManagedObjectModel(for: PersistenceSchema.models) else {
+                print("☁️ CloudKit schema: could not build the Core Data model")
+                return
+            }
+            let description = NSPersistentStoreDescription(url: configuration.url)
+            description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: cloudKitContainerID)
+            description.shouldAddStoreAsynchronously = false
+
+            let container = NSPersistentCloudKitContainer(name: "CarManager", managedObjectModel: model)
+            container.persistentStoreDescriptions = [description]
+            var loadError: Error?
+            container.loadPersistentStores { _, error in loadError = error }
+            if let loadError {
+                print("☁️ CloudKit schema: store failed to load — \(loadError)")
+                return
+            }
+            do {
+                try container.initializeCloudKitSchema()
+                let names = model.entities.compactMap(\.name).sorted().map { "CD_" + $0 }
+                print("☁️ CloudKit schema initialized: \(names.count) record types — \(names.joined(separator: ", "))")
+            } catch {
+                print("☁️ CloudKit schema: initialization failed — \(error)")
+            }
+            // SwiftData opens the same file next; it must not be held open here.
+            for store in container.persistentStoreCoordinator.persistentStores {
+                try? container.persistentStoreCoordinator.remove(store)
+            }
+        }
+    }
+}
+#endif
 
 /// Reports what SwiftData's CloudKit mirroring is actually doing.
 ///

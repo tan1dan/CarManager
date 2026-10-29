@@ -43,6 +43,7 @@ extension RouteGuard.Context {
         vehicleCount: Int = 1,
         hasVehicle: Bool = true,
         disclaimers: Set<Int> = [],
+        aiConsent: Bool = true,
         now: Date = FixedClock().now
     ) -> RouteGuard.Context {
         RouteGuard.Context(
@@ -53,6 +54,7 @@ extension RouteGuard.Context {
             vehicleCount: vehicleCount,
             hasSelectedVehicle: hasVehicle,
             acknowledgedDisclaimers: disclaimers,
+            hasAIConsent: aiConsent,
             now: now
         )
     }

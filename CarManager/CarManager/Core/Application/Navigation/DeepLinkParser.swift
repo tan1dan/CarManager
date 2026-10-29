@@ -56,7 +56,9 @@ public enum DeepLinkParser {
             return .tab(.ai)
 
         case "scan":
-            guard let raw = segments.first, let purpose = CameraPurpose(rawValue: raw) else { return nil }
+            // Plate and vehicle-photo scans are not built yet; their links lead nowhere.
+            guard let raw = segments.first, let purpose = CameraPurpose(rawValue: raw),
+                  purpose != .plate, purpose != .vehiclePhoto else { return nil }
             return .fullScreen(.camera(purpose))
 
         case "alerts":

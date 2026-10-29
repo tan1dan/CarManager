@@ -51,7 +51,6 @@ final class VehicleEditorViewModel {
 
     var isSaving: Bool { if case .loading = state { return true }; return false }
 
-    var isPlateScanLocked: Bool { !featureGate.canUse(.plateScan) }
 
     // MARK: - Catalog
 

@@ -45,12 +45,12 @@ struct DisclaimerAcknowledgementView: View {
         case .notProfessionalDiagnostics: [
             ("eye", String(localized: "It sees only what is in the photo — it cannot read fault codes or hear the engine.")),
             ("exclamationmark.triangle", String(localized: "A red or flashing light can mean stop now. When in doubt, stop safely and call a mechanic.")),
-            ("lock.shield", String(localized: "The photo is sent to our AI provider for analysis, without location data."))
+            ("lock.shield", String(localized: "The photo is sent to OpenAI for analysis, without location data."))
         ]
         case .costEstimateOnly: [
             ("camera.viewfinder", String(localized: "It judges only what is visible. Hidden or structural damage may be missed.")),
             ("eurosign.circle", String(localized: "Costs are rough ranges for an independent workshop, never a quote.")),
-            ("lock.shield", String(localized: "Photos are sent to our AI provider for analysis, without location data."))
+            ("lock.shield", String(localized: "Photos are sent to OpenAI for analysis, without location data."))
         ]
         }
     }

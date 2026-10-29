@@ -65,7 +65,7 @@ enum AuthMessages {
             return String(localized: "Sign in with Apple isn't available. Check that you're signed into iCloud in Settings.")
         case .networkUnavailable: return String(localized: "You're offline. Check your connection and try again.")
         case .requiresReauthentication: return String(localized: "Please sign in again.")
-        case .providerFailed: return String(localized: "Something went wrong. Please try again.")
+        case .providerFailed, .revocationFailed: return String(localized: "Something went wrong. Please try again.")
         }
     }
 }

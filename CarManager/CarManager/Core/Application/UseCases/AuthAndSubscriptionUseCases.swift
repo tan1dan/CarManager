@@ -186,9 +186,11 @@ public struct LoadHomeDashboard: Sendable {
 /// Apple identity. The store mirrors to the private iCloud database, so the deletions reach
 /// iCloud and the user's other devices too.
 ///
-/// Order matters: documents first (their files are removed with them), then each vehicle with
-/// its records, then everything not tied to a vehicle. The identity goes last, so a failure
-/// part-way leaves the user signed in and able to try again.
+/// Order matters. The Apple authorization is revoked first (App Review 5.1.1(v)): if the user
+/// cancels the Apple prompt or Apple cannot be reached, nothing is erased. Then documents
+/// (their files are removed with them), each vehicle with its records, and everything not tied
+/// to a vehicle. The identity goes last, so a failure part-way leaves the user signed in and
+/// able to try again.
 public struct DeleteAccount: Sendable {
     let auth: any AuthProviding
     let vehicles: any VehicleRepository
@@ -212,6 +214,8 @@ public struct DeleteAccount: Sendable {
     }
 
     public func callAsFunction() async throws {
+        try await auth.revokeAuthorization()
+
         var orphaned: [FileRef] = []
         for document in try await documents.query(DocumentQuery()) {
             orphaned += try await documents.delete(id: document.id)
@@ -236,6 +240,7 @@ public struct DeleteAccount: Sendable {
         await notifications.cancelAll(matching: "")
         preferences.defaultVehicleID = nil
         preferences.acknowledgedDisclaimerVersions = []
+        preferences.aiDataSharingConsentVersion = 0
 
         try await auth.deleteAccount()
     }

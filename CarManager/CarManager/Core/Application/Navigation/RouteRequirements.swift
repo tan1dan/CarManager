@@ -9,14 +9,18 @@ public struct RouteRequirements: Sendable, Hashable {
     public var requiredFeature: PremiumFeature?
     public var requiresVehicle: Bool
     public var requiredDisclaimer: DisclaimerKind?
+    /// The screen sends what the user enters (messages, photos) to the third-party AI.
+    public var sendsDataToAI: Bool
 
     public init(
         requiredFeature: PremiumFeature? = nil,
-        requiresVehicle: Bool = false, requiredDisclaimer: DisclaimerKind? = nil
+        requiresVehicle: Bool = false, requiredDisclaimer: DisclaimerKind? = nil,
+        sendsDataToAI: Bool = false
     ) {
         self.requiredFeature = requiredFeature
         self.requiresVehicle = requiresVehicle
         self.requiredDisclaimer = requiredDisclaimer
+        self.sendsDataToAI = sendsDataToAI
     }
 
     public static let none = RouteRequirements()
@@ -33,7 +37,10 @@ public extension AppRoute {
             RouteRequirements(requiresVehicle: true)
         case .analytics, .analyticsSection:
             RouteRequirements(requiredFeature: .advancedAnalytics, requiresVehicle: true)
-        case .aiChat, .conversationHistory:
+        case .aiChat:
+            RouteRequirements(requiredFeature: .aiChat, sendsDataToAI: true)
+        // Reading past conversations sends nothing anywhere.
+        case .conversationHistory:
             RouteRequirements(requiredFeature: .aiChat)
         case .aiInsightDetail:
             RouteRequirements(requiredFeature: .aiInsights)
@@ -51,7 +58,7 @@ public extension ModalRoute {
     var requirements: RouteRequirements {
         switch self {
         case .quickLog, .vehiclePicker, .paywall, .legal,
-             .disclaimerAcknowledgement, .vehicleEditor:
+             .disclaimerAcknowledgement, .aiConsent, .vehicleEditor:
             .none
         // Gating happens before the file is produced, so presenting it needs nothing.
         case .shareExport:
@@ -72,16 +79,16 @@ public extension FullScreenRoute {
         case .camera(let purpose):
             switch purpose {
             case .receipt:
-                RouteRequirements(requiredFeature: .receiptScan, requiresVehicle: true)
+                RouteRequirements(requiredFeature: .receiptScan, requiresVehicle: true, sendsDataToAI: true)
             case .dashboard:
                 RouteRequirements(
                     requiredFeature: .dashboardScan,
-                    requiredDisclaimer: .notProfessionalDiagnostics
+                    requiredDisclaimer: .notProfessionalDiagnostics, sendsDataToAI: true
                 )
             case .damage:
                 RouteRequirements(
                     requiredFeature: .damageAnalysis, requiresVehicle: true,
-                    requiredDisclaimer: .costEstimateOnly
+                    requiredDisclaimer: .costEstimateOnly, sendsDataToAI: true
                 )
             case .plate:
                 RouteRequirements(requiredFeature: .plateScan)

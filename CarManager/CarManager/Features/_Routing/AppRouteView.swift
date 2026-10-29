@@ -90,6 +90,7 @@ struct ModalRouteView: View {
         case .legal(let document): LegalView(document: document)
         case .shareExport(let url): ShareExportView(url: url)
         case .disclaimerAcknowledgement(let kind): DisclaimerAcknowledgementView(kind: kind)
+        case .aiConsent: AIConsentView()
         }
     }
 }

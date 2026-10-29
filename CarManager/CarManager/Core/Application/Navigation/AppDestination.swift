@@ -140,6 +140,8 @@ public enum ModalRoute: Hashable, Codable, Sendable, Identifiable {
     /// Hands a generated file to the system share sheet.
     case shareExport(URL)
     case disclaimerAcknowledgement(DisclaimerKind)
+    /// Asks before anything is sent to the third-party AI.
+    case aiConsent
 
     public var id: Self { self }
 }

@@ -70,6 +70,10 @@ public final class UserPreferencesStore: PreferencesProviding, @unchecked Sendab
         get { Set(value("pref.disclaimers", default: [Int]())) }
         set { set("pref.disclaimers", Array(newValue)) }
     }
+    public var aiDataSharingConsentVersion: Int {
+        get { value("pref.aiConsentVersion", default: 0) }
+        set { set("pref.aiConsentVersion", newValue) }
+    }
 }
 
 /// In-memory preferences for tests and previews.
@@ -85,9 +89,13 @@ public final class InMemoryPreferences: PreferencesProviding, @unchecked Sendabl
     private var _icloud = true
     private var _onboardingVersion = 0
     private var _disclaimers: Set<Int> = []
+    private var _aiConsentVersion: Int
 
-    public init(onboardingCompletedVersion: Int = 0) {
+    /// Tests and previews start with AI data sharing agreed, so they reach AI screens
+    /// directly; the consent tests pass `aiConsentVersion: 0`.
+    public init(onboardingCompletedVersion: Int = 0, aiConsentVersion: Int = AIDataSharing.currentVersion) {
         _onboardingVersion = onboardingCompletedVersion
+        _aiConsentVersion = aiConsentVersion
     }
 
     private func read<T>(_ body: () -> T) -> T { lock.lock(); defer { lock.unlock() }; return body() }
@@ -122,6 +130,9 @@ public final class InMemoryPreferences: PreferencesProviding, @unchecked Sendabl
     }
     public var acknowledgedDisclaimerVersions: Set<Int> {
         get { read { _disclaimers } } set { write { _disclaimers = newValue } }
+    }
+    public var aiDataSharingConsentVersion: Int {
+        get { read { _aiConsentVersion } } set { write { _aiConsentVersion = newValue } }
     }
 }
 

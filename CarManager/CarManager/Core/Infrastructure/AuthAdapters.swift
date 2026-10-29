@@ -9,14 +9,19 @@ public struct AppleAuthProvider: AuthProviding {
     let identityStore: any AppleIdentityStoring
     let credentialState: any AppleCredentialStateProviding
     let clock: any ClockProviding
+    /// `nil` only where there is no real Apple authorization to withdraw: tests and the
+    /// DEBUG test identity.
+    let revoker: (any AppleAuthorizationRevoking)?
 
     public init(
         identityStore: any AppleIdentityStoring,
         credentialState: any AppleCredentialStateProviding,
+        revoker: (any AppleAuthorizationRevoking)? = nil,
         clock: any ClockProviding
     ) {
         self.identityStore = identityStore
         self.credentialState = credentialState
+        self.revoker = revoker
         self.clock = clock
     }
 
@@ -65,6 +70,12 @@ public struct AppleAuthProvider: AuthProviding {
         stored.displayName = trimmed
         try identityStore.save(stored)
         return stored.profile
+    }
+
+    public func revokeAuthorization() async throws {
+        guard let revoker else { return }
+        guard let stored = try identityStore.load() else { throw DomainError.authentication(.requiresReauthentication) }
+        try await revoker.revoke(expectedUserID: stored.userID)
     }
 
     /// Forgets the identity on this device entirely. The data itself is erased by

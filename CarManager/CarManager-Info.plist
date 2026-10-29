@@ -13,8 +13,6 @@
 			</array>
 		</dict>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>SupabasePublishableKey</key>
 	<string>sb_publishable_zpoDLrtvo_O0gRwp6uUPaw_HhZpC5jH</string>
 	<key>SupabaseURL</key>

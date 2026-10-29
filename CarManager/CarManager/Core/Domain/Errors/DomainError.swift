@@ -56,6 +56,8 @@ public enum AuthenticationError: Error, Sendable, Equatable {
     case providerFailed(String)
     case requiresReauthentication
     case networkUnavailable
+    /// Apple did not confirm the authorization was withdrawn, so the account was kept.
+    case revocationFailed
 }
 
 public enum SubscriptionError: Error, Sendable, Equatable {

@@ -8,9 +8,18 @@ public protocol AuthProviding: Sendable {
     func restoreSession() async throws -> UserProfile?
     func signInWithApple(_ credential: AppleIDCredential) async throws -> UserProfile
     func signOut() async throws
+    /// Withdraws this app's Sign in with Apple authorization at Apple. The first step of
+    /// deleting an account: if it fails, nothing is erased.
+    func revokeAuthorization() async throws
     func deleteAccount() async throws
     /// The name shown in the app. Only ever displayed — it identifies nothing.
     func updateDisplayName(_ name: String) async throws -> UserProfile
+}
+
+/// Revokes the app's Sign in with Apple authorization after the user confirms with Apple.
+public protocol AppleAuthorizationRevoking: Sendable {
+    /// Throws unless the confirming Apple ID is `expectedUserID` and Apple accepted the revoke.
+    func revoke(expectedUserID: String) async throws
 }
 
 /// Where the Apple identity is persisted between launches (the Keychain in production).

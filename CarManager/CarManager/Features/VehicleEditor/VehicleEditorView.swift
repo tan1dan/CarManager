@@ -68,14 +68,12 @@ private struct VehicleEditorContentView: View {
     private enum Metrics {
         static let rowHeight: CGFloat = 54
         static let rowPadding: CGFloat = 16
-        static let scanButtonHeight: CGFloat = 84
         static let ctaHeight: CGFloat = 56
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                scanPlateButton
                 fields
                 saveButton
                 if let error = viewModel.state.error {
@@ -121,31 +119,6 @@ private struct VehicleEditorContentView: View {
                 .accessibilityIdentifier("vehicleSaveTop")
         }
         .hidingSharedBackground()
-    }
-
-    private var scanPlateButton: some View {
-        Button { model?.router.presentFullScreen(.camera(.plate)) } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "camera")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("Scan license plate")
-                    .font(.system(size: 13, weight: .semibold))
-                    .tracking(DS.Text.defaultTracking)
-                if viewModel.isPlateScanLocked {
-                    // Plate scanning is premium; RouteGuard sends a free user to the paywall.
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(DS.Colors.textSecondary)
-                }
-            }
-            .foregroundStyle(DS.Colors.accent)
-            .frame(maxWidth: .infinity)
-            .frame(height: Metrics.scanButtonHeight)
-            .dsSurface()
-            .contentShape(.rect)
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("vehicleScanPlate")
     }
 
     private var fields: some View {

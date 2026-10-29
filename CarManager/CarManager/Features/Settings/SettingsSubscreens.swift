@@ -281,7 +281,7 @@ private struct AccountSettingsView: View {
             Task { do { try await model?.auth.signOut() } catch { self.error = UserMessage.text(for: error) } }
         }
         .confirmDialog(isPresented: $confirmingDelete, symbol: "trash", title: String(localized: "Delete account?"),
-                       message: String(localized: "Every car, record, document and AI chat is erased — here, in iCloud and on your other devices. This can't be undone."), confirmTitle: String(localized: "Delete")) {
+                       message: String(localized: "Every car, record, document and AI chat is erased — here, in iCloud and on your other devices, and Sign in with Apple is disconnected. Apple will ask you to confirm. This can't be undone."), confirmTitle: String(localized: "Delete")) {
             Task {
                 guard let model else { return }
                 let d = model.dependencies
@@ -291,6 +291,8 @@ private struct AccountSettingsView: View {
                         inbox: d.inbox, scans: d.scans, files: d.files, notifications: d.notifications, preferences: d.preferences
                     ))
                     await model.vehicles.refresh()
+                } catch DomainError.authentication(.cancelled) {
+                    // The Apple confirmation was dismissed: the account simply stays.
                 } catch {
                     self.error = UserMessage.text(for: error)
                 }
@@ -459,9 +461,22 @@ struct LegalSettingsView: View {
     @Environment(\.appModel) private var model
     @Environment(\.openURL) private var openURL
     @State private var showsEmail = false
+    @State private var aiConsent = false
 
     var body: some View {
         SubscreenScaffold(title: title) {
+            if showsContact {
+                // Where the AI data-sharing answer is changed (Guideline 5.1.2(i)).
+                SettingsGroup(title: String(localized: "Privacy")) {
+                    SettingsLine(symbol: "sparkles", title: String(localized: "Share data with AI"),
+                                 subtitle: String(localized: "\(AIDataSharing.provider) · AI chat and scans"), isFirst: true) {
+                        Toggle("", isOn: $aiConsent).labelsHidden().tint(DS.Colors.accent)
+                            .accessibilityLabel(String(localized: "Share data with AI"))
+                            .accessibilityIdentifier("supportAIConsent")
+                    }
+                }
+                Footnote(text: String(localized: "When this is off, AI chat and scans ask before sending anything. Manual logging works either way."))
+            }
             SettingsGroup(title: nil) {
                 if showsContact {
                     Button(action: contactUs) {
@@ -482,6 +497,12 @@ struct LegalSettingsView: View {
                 .accessibilityIdentifier("legalTerms")
             }
             Footnote(text: String(localized: "Version \(Bundle.main.appVersionString)"))
+        }
+        .onAppear {
+            aiConsent = (model?.dependencies.preferences.aiDataSharingConsentVersion ?? 0) >= AIDataSharing.currentVersion
+        }
+        .onChange(of: aiConsent) { _, allowed in
+            model?.dependencies.preferences.aiDataSharingConsentVersion = allowed ? AIDataSharing.currentVersion : 0
         }
         // No mail app set up: show the address so it can be copied into any other one.
         .alert("Contact us", isPresented: $showsEmail) {

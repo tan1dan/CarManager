@@ -20,13 +20,15 @@ public struct RouteGuard: Sendable {
         public var vehicleCount: Int
         public var hasSelectedVehicle: Bool
         public var acknowledgedDisclaimers: Set<Int>
+        public var hasAIConsent: Bool
         public var now: Date
 
         public init(
             isOnboardingCompleted: Bool, authState: AuthState, entitlement: Entitlement,
             aiUsage: AIUsageSnapshot, vehicleCount: Int, hasSelectedVehicle: Bool,
-            acknowledgedDisclaimers: Set<Int>, now: Date
+            acknowledgedDisclaimers: Set<Int>, hasAIConsent: Bool = true, now: Date
         ) {
+            self.hasAIConsent = hasAIConsent
             self.isOnboardingCompleted = isOnboardingCompleted
             self.authState = authState
             self.entitlement = entitlement
@@ -86,7 +88,13 @@ public struct RouteGuard: Sendable {
             }
         }
 
-        // 5. Disclaimer acknowledgement for the AI vision flows.
+        // 5. Consent to share data with the third-party AI (Guideline 5.1.2(i)). After the
+        //    paywall, so nobody is asked to agree to something they cannot use yet.
+        if requirements.sendsDataToAI, !context.hasAIConsent {
+            return .present(.aiConsent)
+        }
+
+        // 6. Disclaimer acknowledgement for the AI vision flows.
         if let disclaimer = requirements.requiredDisclaimer {
             let version = disclaimer == .notProfessionalDiagnostics
                 ? AIDisclaimer.dashboard.version
@@ -121,6 +129,7 @@ private extension RouteRequirements {
         requiresVehicle = requiresVehicle || other.requiresVehicle
         requiredFeature = requiredFeature ?? other.requiredFeature
         requiredDisclaimer = requiredDisclaimer ?? other.requiredDisclaimer
+        sendsDataToAI = sendsDataToAI || other.sendsDataToAI
     }
 }
 

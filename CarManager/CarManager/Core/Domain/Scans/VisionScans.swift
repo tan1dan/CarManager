@@ -1,5 +1,13 @@
 import Foundation
 
+/// Guideline 5.1.2(i): before any personal data goes to a third-party AI, the app names it and
+/// asks. Bump `currentVersion` when the provider or what is sent changes — everyone is asked
+/// again.
+public enum AIDataSharing {
+    public static let currentVersion = 1
+    public static let provider = "OpenAI"
+}
+
 public enum DisclaimerKind: String, Codable, Sendable {
     case notProfessionalDiagnostics
     case costEstimateOnly

@@ -46,6 +46,7 @@ public final class AppModel {
                 vehicleCount: vehicles.vehicleCount,
                 hasSelectedVehicle: vehicles.selected != nil,
                 acknowledgedDisclaimers: dependencies.preferences.acknowledgedDisclaimerVersions,
+                hasAIConsent: dependencies.preferences.aiDataSharingConsentVersion >= AIDataSharing.currentVersion,
                 now: dependencies.clock.now
             )
         }

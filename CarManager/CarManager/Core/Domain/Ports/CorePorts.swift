@@ -29,6 +29,8 @@ public protocol PreferencesProviding: AnyObject, Sendable {
     var iCloudSyncEnabled: Bool { get set }
     var onboardingCompletedVersion: Int { get set }
     var acknowledgedDisclaimerVersions: Set<Int> { get set }
+    /// The version of the third-party AI data-sharing notice the user agreed to; 0 = never.
+    var aiDataSharingConsentVersion: Int { get set }
 }
 
 public protocol ConnectivityProviding: Sendable {
