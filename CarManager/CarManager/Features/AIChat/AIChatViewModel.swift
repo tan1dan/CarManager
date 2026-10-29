@@ -61,15 +61,15 @@ final class AIChatViewModel {
 
     /// "Online", "Typing…", "2 free questions left today".
     var status: String {
-        if isStreaming { return "Typing…" }
+        if isStreaming { return String(localized: "Typing…") }
         switch access {
-        case .allowed: return "Online"
+        case .allowed: return String(localized: "Online")
         case .allowedWithQuota(let remaining, _):
-            return "\(remaining) free question\(remaining == 1 ? "" : "s") left today"
+            return String(localized: "\(remaining) free questions left today")
         case .locked(.quotaExhausted):
             let limit = FeatureGating.freeDailyAIRequests
-            return "\(limit) of \(limit) free questions used"
-        case .locked: return "Premium"
+            return String(localized: "\(limit) of \(limit) free questions used")
+        case .locked: return String(localized: "Premium")
         }
     }
 
@@ -83,15 +83,15 @@ final class AIChatViewModel {
 
     /// "Audi A4", "Another car", or "Removed car" when a conversation's car left the garage.
     var vehicleTitle: String {
-        guard let vehicleID else { return "Another car" }
-        return vehicleOptions.first { $0.id == vehicleID }?.name ?? "Removed car"
+        guard let vehicleID else { return String(localized: "Another car") }
+        return vehicleOptions.first { $0.id == vehicleID }?.name ?? String(localized: "Removed car")
     }
 
     /// Starters for an empty chat.
     let suggestions = [
-        "My engine cranks but won't start. What could it be?",
-        "What does a flashing check engine light mean?",
-        "Brakes squeal when I stop. Is it safe to drive?"
+        String(localized: "My engine cranks but won't start. What could it be?"),
+        String(localized: "What does a flashing check engine light mean?"),
+        String(localized: "Brakes squeal when I stop. Is it safe to drive?")
     ]
 
     // MARK: - Actions
@@ -251,9 +251,9 @@ final class ConversationsViewModel {
             let when = isToday ? relative.localizedString(for: summary.updatedAt, relativeTo: now)
                                : format.shortDate(summary.updatedAt, relativeTo: now)
             let row = Row(id: summary.id, title: summary.title,
-                          subtitle: "\(when) · \(summary.messageCount) message\(summary.messageCount == 1 ? "" : "s")")
+                          subtitle: "\(when) · " + String(localized: "\(summary.messageCount) messages"))
             if isToday { today.append(row) } else { earlier.append(row) }
         }
-        return [Group(title: "Today", rows: today), Group(title: "Earlier", rows: earlier)].filter { !$0.rows.isEmpty }
+        return [Group(title: String(localized: "Today"), rows: today), Group(title: String(localized: "Earlier"), rows: earlier)].filter { !$0.rows.isEmpty }
     }
 }

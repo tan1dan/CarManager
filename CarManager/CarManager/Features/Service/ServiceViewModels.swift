@@ -90,7 +90,7 @@ final class ServiceHistoryViewModel {
 
     /// "Oil & filter change", or "Oil change + 2" when one visit covered several jobs.
     static func title(for record: ServiceRecord) -> String {
-        guard let first = record.items.first else { return "Service" }
+        guard let first = record.items.first else { return String(localized: "Service") }
         let name = first.name.isEmpty ? first.type.displayName : first.name
         return record.items.count > 1 ? "\(name) + \(record.items.count - 1)" : name
     }
@@ -99,12 +99,12 @@ final class ServiceHistoryViewModel {
     private func hero(_ evaluations: [ReminderEvaluation], eyebrow: String) -> ServiceHistoryPresentation.Hero {
         let service = evaluations.filter { !$0.reminder.kind.satisfyingServiceTypes.isEmpty }
         if let overdue = service.first(where: { if case .overdue = $0.status { return true }; return false }) {
-            return .init(eyebrow: eyebrow, title: "\(overdue.reminder.title) is overdue", tone: .danger)
+            return .init(eyebrow: eyebrow, title: String(localized: "\(overdue.reminder.title) is overdue"), tone: .danger)
         }
         let byDistance = service.compactMap { e in e.progress?.remainingDistance.map { (e, $0) } }
             .min { $0.1.kilometers < $1.1.kilometers }
         if let (_, distance) = byDistance {
-            return .init(eyebrow: eyebrow, title: "Next service in \(format.distance(distance))", tone: .accent)
+            return .init(eyebrow: eyebrow, title: String(localized: "Next service in \(format.distance(distance))"), tone: .accent)
         }
         let byDate = service.compactMap { e -> Date? in
             switch e.reminder.trigger {
@@ -113,9 +113,9 @@ final class ServiceHistoryViewModel {
             }
         }.min()
         if let byDate {
-            return .init(eyebrow: eyebrow, title: "Next service on \(format.longDate(byDate))", tone: .accent)
+            return .init(eyebrow: eyebrow, title: String(localized: "Next service on \(format.longDate(byDate))"), tone: .accent)
         }
-        return .init(eyebrow: eyebrow, title: "No service scheduled", tone: .neutral)
+        return .init(eyebrow: eyebrow, title: String(localized: "No service scheduled"), tone: .neutral)
     }
 }
 

@@ -153,7 +153,7 @@ enum VehicleEditorFormatter {
     static func productionRange(_ model: VehicleCatalog.Model) -> String? {
         switch (model.from, model.to) {
         case let (from?, to?): from == to ? "\(from)" : "\(from)–\(to)"
-        case let (from?, nil): "\(from)–present"
+        case let (from?, nil): String(localized: "\(from)–present")
         default: nil
         }
     }

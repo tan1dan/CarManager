@@ -57,8 +57,12 @@ struct DisplayFormat: Sendable {
 
     // MARK: Units
 
-    var distanceUnit: String { unitSystem == .metric ? "km" : "mi" }
-    var consumptionUnit: String { unitSystem == .metric ? "L/100km" : "mpg" }
+    var distanceUnit: String {
+        unitSystem == .metric ? String(localized: "km", comment: "Kilometres, unit symbol") : String(localized: "mi", comment: "Miles, unit symbol")
+    }
+    var consumptionUnit: String {
+        unitSystem == .metric ? String(localized: "L/100km", comment: "Fuel consumption unit") : String(localized: "mpg", comment: "Miles per gallon")
+    }
 
     func distance(_ distance: Distance) -> String {
         integer(unitSystem == .metric ? distance.kilometers : distance.miles) + " " + distanceUnit
@@ -72,15 +76,16 @@ struct DisplayFormat: Sendable {
     }
 
     func volume(_ volume: Volume) -> String {
-        unitSystem == .metric ? integer(volume.liters) + " L" : decimal(volume.liters / 3.785411784) + " gal"
+        unitSystem == .metric ? integer(volume.liters) + " " + String(localized: "L", comment: "Litres, unit symbol")
+                              : decimal(volume.liters / 3.785411784) + " " + String(localized: "gal", comment: "US gallons, unit symbol")
     }
 
     // MARK: Dates
 
     func shortDate(_ date: Date, relativeTo now: Date) -> String {
-        if calendar.isDate(date, inSameDayAs: now) { return "Today" }
+        if calendar.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) {
-            return "Yesterday"
+            return String(localized: "Yesterday")
         }
         var style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).month(.abbreviated).day()
         if calendar.component(.year, from: date) != calendar.component(.year, from: now) { style = style.year() }
@@ -110,16 +115,16 @@ extension Decimal {
 extension ExpenseCategory {
     var displayName: String {
         switch self {
-        case .fuel: "Fuel"
-        case .maintenance: "Service"
-        case .repairs: "Repairs"
-        case .insurance: "Insurance"
-        case .parking: "Parking"
-        case .carWash: "Car wash"
-        case .tires: "Tyres"
-        case .taxes: "Taxes"
-        case .accessories: "Accessories"
-        case .other: "Other"
+        case .fuel: String(localized: "Fuel")
+        case .maintenance: String(localized: "Service")
+        case .repairs: String(localized: "Repairs")
+        case .insurance: String(localized: "Insurance")
+        case .parking: String(localized: "Parking")
+        case .carWash: String(localized: "Car wash")
+        case .tires: String(localized: "Tyres")
+        case .taxes: String(localized: "Taxes")
+        case .accessories: String(localized: "Accessories")
+        case .other: String(localized: "Other")
         }
     }
 
@@ -142,15 +147,15 @@ extension ExpenseCategory {
 extension ServiceType {
     var displayName: String {
         switch self {
-        case .oilChange: "Oil change"
-        case .filters: "Filters"
-        case .brakes: "Brakes"
-        case .tires: "Tyres"
-        case .battery: "Battery"
-        case .suspension: "Suspension"
-        case .engine: "Engine"
-        case .electrical: "Electrical"
-        case .other: "Other"
+        case .oilChange: String(localized: "Oil change")
+        case .filters: String(localized: "Filters")
+        case .brakes: String(localized: "Brakes")
+        case .tires: String(localized: "Tyres")
+        case .battery: String(localized: "Battery")
+        case .suspension: String(localized: "Suspension")
+        case .engine: String(localized: "Engine")
+        case .electrical: String(localized: "Electrical")
+        case .other: String(localized: "Other")
         }
     }
 }
@@ -158,17 +163,17 @@ extension ServiceType {
 extension ReminderKind {
     var displayName: String {
         switch self {
-        case .oilChange: "Oil change"
-        case .filterReplacement: "Filters"
-        case .tireChange: "Tyre swap"
-        case .tirePressure: "Tyre pressure"
-        case .technicalInspection: "Technical inspection"
-        case .insurance: "Insurance"
-        case .battery: "Battery"
-        case .brakePads: "Brake pads"
-        case .timingBelt: "Timing belt"
-        case .vehicleTax: "Vehicle tax"
-        case .custom: "Custom"
+        case .oilChange: String(localized: "Oil change")
+        case .filterReplacement: String(localized: "Filters")
+        case .tireChange: String(localized: "Tyre swap")
+        case .tirePressure: String(localized: "Tyre pressure")
+        case .technicalInspection: String(localized: "Technical inspection")
+        case .insurance: String(localized: "Insurance")
+        case .battery: String(localized: "Battery")
+        case .brakePads: String(localized: "Brake pads")
+        case .timingBelt: String(localized: "Timing belt")
+        case .vehicleTax: String(localized: "Vehicle tax")
+        case .custom: String(localized: "Custom")
         }
     }
 
@@ -199,15 +204,15 @@ extension ReminderKind {
 extension DocumentType {
     var displayName: String {
         switch self {
-        case .insurance: "Insurance"
-        case .registration: "Registration"
-        case .technicalInspection: "Tech. inspection"
-        case .warranty: "Warranty"
-        case .driverLicense: "Driver licence"
-        case .serviceDocument: "Service document"
-        case .purchaseInvoice: "Purchase invoice"
-        case .manual: "Manual"
-        case .other: "Other"
+        case .insurance: String(localized: "Insurance")
+        case .registration: String(localized: "Registration")
+        case .technicalInspection: String(localized: "Tech. inspection")
+        case .warranty: String(localized: "Warranty")
+        case .driverLicense: String(localized: "Driver licence")
+        case .serviceDocument: String(localized: "Service document")
+        case .purchaseInvoice: String(localized: "Purchase invoice")
+        case .manual: String(localized: "Manual")
+        case .other: String(localized: "Other")
         }
     }
 

@@ -57,7 +57,7 @@ struct HomePresentationModel: Equatable, Sendable {
     }
 
     static let placeholder = HomePresentationModel(
-        greeting: "", title: "Your garage", unreadCount: 0,
+        greeting: "", title: String(localized: "Your garage"), unreadCount: 0,
         vehicle: VehicleCard(name: "", subtitle: "", statusChip: nil, stats: []),
         insight: nil, upcoming: [], tiles: []
     )
@@ -76,11 +76,11 @@ struct HomeFormatter: Sendable {
     ) -> HomePresentationModel {
         HomePresentationModel(
             greeting: greeting(for: userName),
-            title: "Your garage",
+            title: String(localized: "Your garage"),
             unreadCount: dashboard.unreadNotificationCount,
             vehicle: vehicleCard(dashboard),
             insight: dashboard.insights.first.map {
-                .init(eyebrow: "AI RECOMMENDATION", body: $0.body.isEmpty ? $0.headline : $0.body)
+                .init(eyebrow: String(localized: "AI RECOMMENDATION"), body: $0.body.isEmpty ? $0.headline : $0.body)
             },
             upcoming: upcomingRows(dashboard),
             tiles: tiles(analytics)
@@ -92,9 +92,9 @@ struct HomeFormatter: Sendable {
     func greeting(for userName: String?) -> String {
         let hour = clock.calendar.component(.hour, from: clock.now)
         let period = switch hour {
-        case 5..<12: "Good morning"
-        case 12..<18: "Good afternoon"
-        default: "Good evening"
+        case 5..<12: String(localized: "Good morning")
+        case 12..<18: String(localized: "Good afternoon")
+        default: String(localized: "Good evening")
         }
         guard let userName, !userName.isEmpty else { return period }
         return "\(period), \(userName)"
@@ -114,14 +114,14 @@ struct HomeFormatter: Sendable {
             statusChip: nil,
             stats: [
                 .init(
-                    caption: "MILEAGE",
+                    caption: String(localized: "MILEAGE"),
                     value: dashboard.currentOdometer.map { distanceValue($0.value) },
                     unit: distanceUnit
                 ),
                 // Next service needs the reminder projector; the row shows the nearest
                 // mileage-triggered reminder when there is one.
                 .init(
-                    caption: "NEXT SVC",
+                    caption: String(localized: "NEXT SVC"),
                     value: nextServiceDistance(dashboard).map(distanceValue),
                     unit: distanceUnit
                 )
@@ -171,10 +171,10 @@ struct HomeFormatter: Sendable {
 
     func tiles(_ analytics: VehicleAnalytics?) -> [HomePresentationModel.StatTile] {
         let format = DisplayFormat(calendar: clock.calendar, unitSystem: unitSystem)
-        let consumptionLabel = unitSystem == .metric ? "Avg. L/100km" : "Avg. mpg"
+        let consumptionLabel = unitSystem == .metric ? String(localized: "Avg. L/100km") : String(localized: "Avg. mpg")
         guard let analytics else {
             return [
-                .init(label: "This month", value: nil, delta: nil, deltaTone: .neutral),
+                .init(label: String(localized: "This month"), value: nil, delta: nil, deltaTone: .neutral),
                 .init(label: consumptionLabel, value: nil, delta: nil, deltaTone: .neutral)
             ]
         }
@@ -182,7 +182,7 @@ struct HomeFormatter: Sendable {
         let consumptionChange = analytics.consumptionChange
         return [
             .init(
-                label: "This month",
+                label: String(localized: "This month"),
                 value: analytics.hasAnyCost ? format.money(analytics.thisMonthSpend, analytics.currency, fractionDigits: 0) : nil,
                 delta: spendChange.map(format.percentChange),
                 deltaTone: Self.tone(for: spendChange),
@@ -202,7 +202,7 @@ struct HomeFormatter: Sendable {
 
     // MARK: - Units
 
-    private var distanceUnit: String { unitSystem == .metric ? "km" : "mi" }
+    private var distanceUnit: String { DisplayFormat(unitSystem: unitSystem).distanceUnit }
 
     private func distanceValue(_ distance: Distance) -> String {
         let raw = unitSystem == .metric ? distance.kilometers : distance.miles
@@ -235,22 +235,22 @@ struct HomeFormatter: Sendable {
 
     private func subtitle(for evaluation: ReminderEvaluation) -> String {
         if let remaining = evaluation.progress?.remainingDistance {
-            return "Due in \(distanceValue(remaining)) \(distanceUnit)"
+            return String(localized: "Due in \(distanceValue(remaining)) \(distanceUnit)")
         }
         return switch evaluation.status {
-        case .overdue(let days?): "Overdue by \(days) days"
-        case .overdue: "Overdue"
-        case .due: "Due now"
-        case .upcoming(let days?): "Due in \(days) days"
-        case .upcoming: "Scheduled"
-        case .indeterminate: "Add a mileage reading"
+        case .overdue(let days?): String(localized: "Overdue by \(days) days")
+        case .overdue: String(localized: "Overdue")
+        case .due: String(localized: "Due now")
+        case .upcoming(let days?): String(localized: "Due in \(days) days")
+        case .upcoming: String(localized: "Scheduled")
+        case .indeterminate: String(localized: "Add a mileage reading")
         }
     }
 
     private func subtitle(for status: DocumentExpiryStatus) -> String? {
         switch status {
-        case .expiringSoon(let days): "Expires in \(days) days"
-        case .expired(let days): "Expired \(days) days ago"
+        case .expiringSoon(let days): String(localized: "Expires in \(days) days")
+        case .expired(let days): String(localized: "Expired \(days) days ago")
         case .valid, .noExpiry: nil
         }
     }

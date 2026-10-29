@@ -10,10 +10,10 @@ struct AnalyticsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                PushedHeader(title: "Analytics", onBack: { model?.router.pop() })
+                PushedHeader(title: String(localized: "Analytics"), onBack: { model?.router.pop() })
                 VStack(spacing: 16) {
                     if let viewModel {
-                        SegmentedPill(options: [(.sixMonths, "6 months"), (.year, "Year"), (.allTime, "All time")],
+                        SegmentedPill(options: [(.sixMonths, String(localized: "6 months")), (.year, String(localized: "Year")), (.allTime, String(localized: "All time"))],
                                       selection: Binding(get: { viewModel.period }, set: select))
                             .accessibilityIdentifier("analyticsPeriodPicker")
                     }
@@ -58,10 +58,10 @@ struct AnalyticsView: View {
             if !p.slices.isEmpty { donutCard(p) }
             if let perDistance = p.costPerDistance { costCard(perDistance) }
         case .empty:
-            EmptyStateView(symbol: "chart.bar", title: "Nothing to analyse yet",
-                           message: "Log fuel, service or expenses and the charts fill in by themselves.")
+            EmptyStateView(symbol: "chart.bar", title: String(localized: "Nothing to analyse yet"),
+                           message: String(localized: "Log fuel, service or expenses and the charts fill in by themselves."))
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load analytics",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load analytics"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -84,7 +84,7 @@ struct AnalyticsView: View {
 
     private func spendCard(_ spend: AnalyticsPresentation.Spend) -> some View {
         VStack(spacing: 20) {
-            cardHeader("Spend per month", value: spend.total, chip: spend.change, tone: spend.changeTone)
+            cardHeader(String(localized: "Spend per month"), value: spend.total, chip: spend.change, tone: spend.changeTone)
             BarSeriesChart(values: spend.bars, labels: spend.labels, spacing: spend.bars.count > 6 ? 6 : 12,
                            cornerRadius: spend.bars.count > 6 ? 5 : 8, highlightTag: spend.tag)
                 .frame(height: 170)
@@ -95,7 +95,7 @@ struct AnalyticsView: View {
 
     private func consumptionCard(_ c: AnalyticsPresentation.Consumption) -> some View {
         VStack(spacing: 16) {
-            cardHeader("Consumption", value: c.value, unit: c.unit, chip: c.best, tone: .success)
+            cardHeader(String(localized: "Consumption"), value: c.value, unit: c.unit, chip: c.best, tone: .success)
             TrendLineChart(values: c.points, color: DS.Colors.series[2], showsAxisLabels: false)
                 .frame(height: 80)
         }
@@ -105,7 +105,7 @@ struct AnalyticsView: View {
 
     private func donutCard(_ p: AnalyticsPresentation) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Eyebrow(text: "Where it goes")
+            Eyebrow(text: String(localized: "Where it goes"))
             HStack(spacing: 24) {
                 DonutChart(segments: p.slices.map { .init(id: $0.name, value: $0.value, color: color($0.colorIndex)) },
                            center: p.donutCenter)

@@ -94,7 +94,7 @@ final class AnalyticsViewModel {
         let spendChange = byYear ? nil : a.lastMonthChange
         let spend = AnalyticsPresentation.Spend(
             total: format.money(a.total, a.currency, fractionDigits: 0),
-            change: spendChange.flatMap { change in previousLabel.map { format.percentChange(change) + " vs " + $0 } },
+            change: spendChange.flatMap { change in previousLabel.map { String(localized: "\(format.percentChange(change)) vs \($0)") } },
             changeTone: (spendChange ?? 0) > 0.005 ? .danger : (spendChange ?? 0) < -0.005 ? .success : .neutral,
             bars: buckets.map { $0.value.doubleValue },
             labels: buckets.map(\.label),
@@ -104,7 +104,7 @@ final class AnalyticsViewModel {
         let consumption = a.averageConsumption.map { average in
             AnalyticsPresentation.Consumption(
                 value: format.consumption(average), unit: format.consumptionUnit,
-                best: a.bestConsumption.map { "Best " + format.consumption($0.value) + " · " + format.month($0.monthStart) },
+                best: a.bestConsumption.map { String(localized: "Best \(format.consumption($0.value)) · \(format.month($0.monthStart))") },
                 points: a.monthlyConsumption.map(\.value)
             )
         }
@@ -115,7 +115,7 @@ final class AnalyticsViewModel {
             let named = a.categories.count > 4 ? Array(a.categories.prefix(3)) : a.categories
             let rest = a.categories.dropFirst(named.count).reduce(Decimal(0)) { $0 + $1.amount }
             var parts = named.map { ($0.category.displayName, $0.amount) }
-            if rest > 0 { parts.append(("Other", rest)) }
+            if rest > 0 { parts.append((String(localized: "Other"), rest)) }
             slices = parts.enumerated().map { index, part in
                 .init(name: part.0, share: "\(Int((part.1.doubleValue / total * 100).rounded()))%",
                       amount: format.money(part.1, a.currency, fractionDigits: 0),
@@ -130,9 +130,10 @@ final class AnalyticsViewModel {
             let changeText = change.flatMap { c -> String? in
                 let percent = Int((abs(c) * 100).rounded())
                 guard percent > 0 else { return nil }
-                return "\(percent)% \(c < 0 ? "cheaper" : "dearer") than the period before"
+                return c < 0 ? String(localized: "\(percent)% cheaper than the period before")
+                         : String(localized: "\(percent)% dearer than the period before")
             }
-            return .init(title: metric ? "Cost per kilometre" : "Cost per mile",
+            return .init(title: metric ? String(localized: "Cost per kilometre") : String(localized: "Cost per mile"),
                          value: format.money(value, a.currency, fractionDigits: 2),
                          change: changeText, changeTone: (change ?? 0) < 0 ? .success : .warning)
         }

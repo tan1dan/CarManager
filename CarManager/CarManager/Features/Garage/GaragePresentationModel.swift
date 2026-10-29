@@ -28,7 +28,7 @@ struct GaragePresentationModel: Equatable, Sendable {
         var unit: String?
     }
 
-    static let empty = GaragePresentationModel(title: "Garage", cards: [])
+    static let empty = GaragePresentationModel(title: String(localized: "Garage"), cards: [])
 }
 
 /// Pure mapping from `[VehicleSummary]` onto display values.
@@ -41,7 +41,7 @@ struct GarageFormatter: Sendable {
         let others = summaries.filter { $0.id != primarySummary?.id }
 
         return GaragePresentationModel(
-            title: "Garage",
+            title: String(localized: "Garage"),
             cards: (primarySummary.map { [$0] } ?? []).map { card($0, isPrimary: true) }
                 + others.map { card($0, isPrimary: false) }
         )
@@ -55,12 +55,12 @@ struct GarageFormatter: Sendable {
             isPrimary: isPrimary,
             stats: [
                 .init(
-                    caption: "MILEAGE",
+                    caption: String(localized: "MILEAGE"),
                     value: summary.currentOdometer.map { distanceValue($0.value) },
                     unit: distanceUnit
                 ),
                 .init(
-                    caption: "FUEL",
+                    caption: String(localized: "FUEL"),
                     value: summary.fuelType.displayName,
                     unit: nil
                 ),
@@ -82,7 +82,7 @@ struct GarageFormatter: Sendable {
         return vin.count > 6 ? String(vin.prefix(5)) + "…" : vin
     }
 
-    private var distanceUnit: String { unitSystem == .metric ? "km" : "mi" }
+    private var distanceUnit: String { DisplayFormat(unitSystem: unitSystem).distanceUnit }
 
     private func distanceValue(_ distance: Distance) -> String {
         let raw = unitSystem == .metric ? distance.kilometers : distance.miles

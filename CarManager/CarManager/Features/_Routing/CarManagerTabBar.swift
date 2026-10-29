@@ -119,10 +119,10 @@ private extension AppTab {
 
     var label: String {
         switch self {
-        case .home: "Home"
-        case .garage: "Garage"
-        case .ai: "AI"
-        case .profile: "Profile"
+        case .home: String(localized: "Home")
+        case .garage: String(localized: "Garage")
+        case .ai: String(localized: "AI", comment: "Tab title for the AI assistant")
+        case .profile: String(localized: "Profile")
         }
     }
 }

@@ -12,18 +12,18 @@ struct DashboardScannerView: View {
             if let viewModel {
                 switch viewModel.state {
                 case .processing:
-                    ScanProcessingView(imageData: viewModel.imageData, title: "Looking at the lights…")
+                    ScanProcessingView(imageData: viewModel.imageData, title: String(localized: "Looking at the lights…"))
                         .accessibilityIdentifier("dashboardProcessing")
                 case .success(let scan):
                     DashboardScanResultContentView(scan: scan, imageData: viewModel.imageData, onClose: close) { ask(scan) }
                 case .failed:
-                    ScanMessageView(symbol: "exclamationmark.triangle", title: "Couldn't analyse the photo",
-                                    message: viewModel.failure ?? "", primaryTitle: "Try again", primary: viewModel.reset,
-                                    secondaryTitle: "Close", secondary: close)
+                    ScanMessageView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't analyse the photo"),
+                                    message: viewModel.failure ?? "", primaryTitle: String(localized: "Try again"), primary: viewModel.reset,
+                                    secondaryTitle: String(localized: "Close"), secondary: close)
                 case .idle:
-                    CaptureScreen(title: "Scan dashboard", symbol: "gauge.with.dots.needle.33percent",
-                                  hint: "Point at the warning light",
-                                  subhint: "AI will identify the symbol and explain it",
+                    CaptureScreen(title: String(localized: "Scan dashboard"), symbol: "gauge.with.dots.needle.33percent",
+                                  hint: String(localized: "Point at the warning light"),
+                                  subhint: String(localized: "AI will identify the symbol and explain it"),
                                   onClose: close, onImage: viewModel.analyze)
                 }
             }
@@ -48,8 +48,8 @@ struct DashboardScannerView: View {
             finding.recommendedAction.isEmpty ? finding.warningName : "\(finding.warningName) (\(finding.recommendedAction))"
         }
         return lights.isEmpty
-            ? "A warning light is on on my dashboard. How can I tell what it means?"
-            : "These warning lights are on: \(lights.joined(separator: "; ")). What should I check, and is it safe to keep driving?"
+            ? String(localized: "A warning light is on on my dashboard. How can I tell what it means?")
+            : String(localized: "These warning lights are on: \(lights.joined(separator: "; ")). What should I check, and is it safe to keep driving?")
     }
 
     private func ask(_ scan: DashboardScan) {
@@ -70,11 +70,11 @@ struct DashboardScanResultContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                PushedHeader(title: "Dashboard scan", onBack: onClose)
+                PushedHeader(title: String(localized: "Dashboard scan"), onBack: onClose)
                 VStack(spacing: 12) {
                     ScanHeroImage(imageData: imageData, symbol: "gauge.with.dots.needle.33percent",
-                                  badge: scan.findings.isEmpty ? "NO LIGHTS FOUND"
-                                         : "\(scan.findings.count) LIGHT\(scan.findings.count == 1 ? "" : "S") FOUND")
+                                  badge: scan.findings.isEmpty ? String(localized: "NO LIGHTS FOUND")
+                                         : String(localized: "\(scan.findings.count) LIGHTS FOUND"))
                     if let summary = scan.summary, !summary.isEmpty {
                         Text(summary).font(DS.Text.subheadlineRegular).foregroundStyle(.white.opacity(0.85))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -82,13 +82,13 @@ struct DashboardScanResultContentView: View {
                     ForEach(Array(scan.findings.enumerated()), id: \.offset) { _, finding in
                         FindingCard(symbol: symbol(finding.severity), tone: tone(finding.severity),
                                     title: finding.warningName, subtitle: finding.recommendedAction,
-                                    detail: finding.likelyCauses.isEmpty ? nil : "Likely: " + finding.likelyCauses.prefix(3).joined(separator: ", "),
+                                    detail: finding.likelyCauses.isEmpty ? nil : String(localized: "Likely: \(finding.likelyCauses.prefix(3).joined(separator: ", "))"),
                                     badge: badge(finding.drivingSafety))
                     }
                     // The disclaimer is part of the model, not just UI copy.
-                    InfoBanner(symbol: "info.circle", text: "Not professional diagnostics. When in doubt, see a mechanic.", tone: .neutral)
+                    InfoBanner(symbol: "info.circle", text: String(localized: "Not professional diagnostics. When in doubt, see a mechanic."), tone: .neutral)
                         .accessibilityIdentifier("dashboardDisclaimer")
-                    SaveButton(title: scan.findings.isEmpty ? "Ask AI" : "Ask AI about these", symbol: "sparkles", action: onAsk)
+                    SaveButton(title: scan.findings.isEmpty ? String(localized: "Ask AI") : String(localized: "Ask AI about these"), symbol: "sparkles", action: onAsk)
                 }
                 .padding(.horizontal, DS.Layout.gutter)
             }
@@ -99,8 +99,8 @@ struct DashboardScanResultContentView: View {
     /// Only the two answers a driver must not miss get a badge.
     private func badge(_ safety: DrivingSafetyAssessment) -> (String, Tone)? {
         switch safety {
-        case .doNotDrive: ("Don't drive", .danger)
-        case .cautionAdvised: ("Drive with care", .warning)
+        case .doNotDrive: (String(localized: "Don't drive"), .danger)
+        case .cautionAdvised: (String(localized: "Drive with care"), .warning)
         case .likelySafe, .unknown: nil
         }
     }
@@ -208,8 +208,8 @@ struct DashboardScanResultView: View {
                 }
             } else if missing {
                 VStack {
-                    PushedHeader(title: "Dashboard scan", onBack: { model?.router.pop() })
-                    EmptyStateView(symbol: "trash", title: "Scan not found", message: "It may have been deleted on another device.")
+                    PushedHeader(title: String(localized: "Dashboard scan"), onBack: { model?.router.pop() })
+                    EmptyStateView(symbol: "trash", title: String(localized: "Scan not found"), message: String(localized: "It may have been deleted on another device."))
                     Spacer()
                 }
             } else {

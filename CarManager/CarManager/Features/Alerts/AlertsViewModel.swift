@@ -69,7 +69,7 @@ final class AlertsViewModel {
             else if notification.createdAt >= startOfWeek { week.append(row) }
             else { earlier.append(row) }
         }
-        let groups = [("Today", today), ("This week", week), ("Earlier", earlier)]
+        let groups = [(String(localized: "Today"), today), (String(localized: "This week"), week), (String(localized: "Earlier"), earlier)]
             .filter { !$0.1.isEmpty }
             .map { AlertsPresentation.Group(title: $0.0, rows: $0.1) }
         return AlertsPresentation(groups: groups)

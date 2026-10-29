@@ -223,10 +223,26 @@ final class SDDamageAnalysis {
     init(id: UUID = UUID()) { self.id = id }
 }
 
+/// The bytes behind a `FileRef` — scan photos, documents, vehicle photos. `.externalStorage`
+/// keeps them out of the SQLite file, and CloudKit mirrors them as assets, so they come back
+/// after a reinstall or on another device together with the records that point at them.
+@Model
+final class SDStoredFile {
+    /// Same as `FileRef.id`.
+    var id: UUID = UUID()
+    var relativePath: String = ""
+    var kindRaw: String = FileKind.scan.rawValue
+    @Attribute(.externalStorage) var data: Data?
+    var createdAt: Date = Date.distantPast
+
+    init(id: UUID = UUID()) { self.id = id }
+}
+
 enum PersistenceSchema {
     static let models: [any PersistentModel.Type] = [
         SDVehicle.self, SDOdometerReading.self, SDFuelEntry.self, SDServiceRecord.self,
         SDExpense.self, SDReminder.self, SDDocument.self, SDConversation.self,
-        SDInsight.self, SDNotification.self, SDDashboardScan.self, SDDamageAnalysis.self
+        SDInsight.self, SDNotification.self, SDDashboardScan.self, SDDamageAnalysis.self,
+        SDStoredFile.self
     ]
 }

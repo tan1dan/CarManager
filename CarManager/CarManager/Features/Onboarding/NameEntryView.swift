@@ -65,7 +65,7 @@ struct NameEntryView: View {
                 }
 
                 Spacer()
-                SaveButton(title: "Continue", symbol: "arrow.right", isBusy: isSaving, isEnabled: canSave, action: save)
+                SaveButton(title: String(localized: "Continue"), symbol: "arrow.right", isBusy: isSaving, isEnabled: canSave, action: save)
                     .accessibilityIdentifier("nameEntryContinue")
                     .padding(.bottom, 16)
             }

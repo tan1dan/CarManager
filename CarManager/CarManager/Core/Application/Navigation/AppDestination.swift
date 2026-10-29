@@ -56,7 +56,7 @@ public enum LegalDocument: String, Hashable, Codable, Sendable, Identifiable {
     case privacyPolicy, termsOfUse
     public var id: String { rawValue }
 
-    public var title: String { self == .privacyPolicy ? "Privacy Policy" : "Terms of Use" }
+    public var title: String { self == .privacyPolicy ? String(localized: "Privacy Policy") : String(localized: "Terms of Use") }
 
     /// The published documents (Google Docs). `/preview` is the clean read-only view: no
     /// editor toolbar and no sign-in prompt. The `…/edit?usp=sharing` links are the ones

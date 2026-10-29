@@ -9,10 +9,10 @@ struct ExpensesView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Expenses", onBack: { model?.router.pop() }) {
+                PushedHeader(title: String(localized: "Expenses"), onBack: { model?.router.pop() }) {
                     HStack(spacing: 8) {
                         if let p = viewModel?.state.value, p.years.count > 1 { yearMenu(p) }
-                        CircleIconButton(symbol: "plus", accessibilityLabel: "Add expense") { add() }
+                        CircleIconButton(symbol: "plus", accessibilityLabel: String(localized: "Add expense")) { add() }
                             .accessibilityIdentifier("expenseAdd")
                     }
                 }
@@ -55,10 +55,10 @@ struct ExpensesView: View {
                 }
             }
             if p.rows.isEmpty {
-                InfoBanner(symbol: "calendar", text: "Nothing was spent in \(String(p.year)).", tone: .neutral)
+                InfoBanner(symbol: "calendar", text: String(localized: "Nothing was spent in \(String(p.year))."), tone: .neutral)
             } else {
                 VStack(spacing: 8) {
-                    Eyebrow(text: "Recent")
+                    Eyebrow(text: String(localized: "Recent"))
                     RowGroup(items: p.rows) { row in
                         RecordRow(symbol: row.symbol, iconStyle: row.isFuel ? .accent : .neutral,
                                   title: row.title, subtitle: row.subtitle, value: row.amount, showsChevron: false)
@@ -73,11 +73,11 @@ struct ExpensesView: View {
                 }
             }
         case .empty:
-            EmptyStateView(symbol: "creditcard", title: "No expenses yet",
-                           message: "Insurance, parking, tolls, car washes — log them and see where the money goes.",
-                           actionTitle: "Add expense", action: add)
+            EmptyStateView(symbol: "creditcard", title: String(localized: "No expenses yet"),
+                           message: String(localized: "Insurance, parking, tolls, car washes — log them and see where the money goes."),
+                           actionTitle: String(localized: "Add expense"), action: add)
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load expenses",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load expenses"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -151,7 +151,7 @@ struct ExpenseDetailsView: View {
     let expenseID: ExpenseID
     @Environment(\.appModel) private var model
     var body: some View {
-        VStack { PushedHeader(title: "Expense", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        VStack { PushedHeader(title: String(localized: "Expense"), onBack: { model?.router.pop() }); Spacer() }.dsScreen()
     }
 }
 
@@ -191,28 +191,28 @@ private struct AddExpenseContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                EditorTopBar(title: "Add Expense", trailingEnabled: viewModel.canSave,
+                EditorTopBar(title: String(localized: "Add Expense"), trailingEnabled: viewModel.canSave,
                              onLeading: viewModel.cancel, onTrailing: save)
                 VStack(spacing: 16) {
-                    HeroAmountField(caption: "Amount", currencySymbol: viewModel.format.currencySymbol(viewModel.currency),
+                    HeroAmountField(caption: String(localized: "Amount"), currencySymbol: viewModel.format.currencySymbol(viewModel.currency),
                                     amount: $viewModel.amountText, meta: viewModel.meta)
                         .accessibilityIdentifier("expenseCostField")
                     FormSurface {
-                        FormMenuRow(label: "Category", options: viewModel.categories.map { ($0, $0.displayName) },
+                        FormMenuRow(label: String(localized: "Category"), options: viewModel.categories.map { ($0, $0.displayName) },
                                     selection: $viewModel.category, isFirst: true)
                             .accessibilityIdentifier("expenseCategoryMenu")
-                        FormDateRow(label: "Date", date: $viewModel.date, range: Date.distantPast...viewModel.now)
+                        FormDateRow(label: String(localized: "Date"), date: $viewModel.date, range: Date.distantPast...viewModel.now)
                         if !viewModel.vehicleName.isEmpty {
-                            FormValueRow(label: "Vehicle", value: viewModel.vehicleName)
+                            FormValueRow(label: String(localized: "Vehicle"), value: viewModel.vehicleName)
                         }
-                        FormTextRow(label: "Odometer", text: $viewModel.odometerText, placeholder: viewModel.odometerHint ?? "Optional",
+                        FormTextRow(label: String(localized: "Odometer"), text: $viewModel.odometerText, placeholder: viewModel.odometerHint ?? String(localized: "Optional"),
                                     unit: viewModel.format.distanceUnit, keyboard: .numberPad)
-                        FormTextRow(label: "Note", text: $viewModel.note, placeholder: "Optional")
+                        FormTextRow(label: String(localized: "Note"), text: $viewModel.note, placeholder: String(localized: "Optional"))
                     }
                     if let error = viewModel.errorMessage {
                         Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    SaveButton(title: "Save expense", isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
+                    SaveButton(title: String(localized: "Save expense"), isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
                         .accessibilityIdentifier("expenseSave")
                 }
                 .padding(.horizontal, DS.Layout.gutter)

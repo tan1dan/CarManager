@@ -26,6 +26,10 @@ public final class AppModel {
             subscriptions: dependencies.subscriptions, clock: dependencies.clock
         )
         self.onboarding = OnboardingStore(preferences: dependencies.preferences)
+        #if DEBUG
+        // `-showIntro` replays the first-launch tour.
+        if ProcessInfo.processInfo.arguments.contains("-showIntro") { onboarding.reset() }
+        #endif
         self.sync = SyncStatusStore(provider: dependencies.syncStatus)
         self.featureGate = FeatureGate(
             entitlements: entitlements, vehicles: vehicles, clock: dependencies.clock

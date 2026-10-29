@@ -72,8 +72,8 @@ final class ReminderDetailViewModel {
         do {
             let updated = try await complete(id: id)
             confirmation = updated.isActive
-                ? "Done. Next one: \(nextDue(updated))."
-                : "Done. This reminder doesn't repeat, so it's now switched off."
+                ? String(localized: "Done. Next one: \(nextDue(updated)).")
+                : String(localized: "Done. This reminder doesn't repeat, so it's now switched off.")
             await load(id: id)
         } catch {
             errorMessage = UserMessage.text(for: error)
@@ -99,19 +99,19 @@ final class ReminderDetailViewModel {
         let fraction = presenter.fraction(for: evaluation, now: now)
         let card = presenter.nextUp(evaluation, fraction: fraction, now: now)
 
-        var rows: [ReminderDetailPresentation.Row] = [.init(label: "Due", value: nextDue(reminder))]
-        rows.append(.init(label: "Repeat", value: presenter.recurrenceText(reminder)))
-        if let notify = leadText(reminder) { rows.append(.init(label: "Notify", value: notify)) }
+        var rows: [ReminderDetailPresentation.Row] = [.init(label: String(localized: "Due"), value: nextDue(reminder))]
+        rows.append(.init(label: String(localized: "Repeat"), value: presenter.recurrenceText(reminder)))
+        if let notify = leadText(reminder) { rows.append(.init(label: String(localized: "Notify"), value: notify)) }
         if let done = reminder.lastCompletedAt {
             let at = reminder.lastCompletedOdometer.map { " · " + format.odometer($0) } ?? ""
-            rows.append(.init(label: "Last done", value: format.longDate(done) + at))
+            rows.append(.init(label: String(localized: "Last done"), value: format.longDate(done) + at))
         }
-        if let vehicleName { rows.append(.init(label: "Vehicle", value: vehicleName)) }
+        if let vehicleName { rows.append(.init(label: String(localized: "Vehicle"), value: vehicleName)) }
 
         return ReminderDetailPresentation(
             symbol: reminder.kind.symbolName,
             title: reminder.title,
-            status: reminder.isActive ? card.subtitle : "Switched off",
+            status: reminder.isActive ? card.subtitle : String(localized: "Switched off"),
             tone: reminder.isActive ? card.tone : .neutral,
             fraction: reminder.isActive ? card.fraction : nil,
             startLabel: card.startLabel,
@@ -128,7 +128,7 @@ final class ReminderDetailViewModel {
         switch reminder.trigger {
         case .date(let d): return format.longDate(d.dueDate)
         case .mileage(let m): return format.odometer(m.dueOdometer)
-        case .whicheverFirst(let d, let m): return format.longDate(d.dueDate) + " or " + format.odometer(m.dueOdometer)
+        case .whicheverFirst(let d, let m): return String(localized: "\(format.longDate(d.dueDate)) or \(format.odometer(m.dueOdometer))")
         }
     }
 
@@ -136,9 +136,9 @@ final class ReminderDetailViewModel {
         switch reminder.trigger {
         case .date, .whicheverFirst:
             guard let days = reminder.leadTime.days else { return nil }
-            return days == 0 ? "On the day" : "\(days) day\(days == 1 ? "" : "s") before"
+            return days == 0 ? String(localized: "On the day") : String(localized: "\(days) days before")
         case .mileage:
-            return reminder.leadTime.distance.map { presenter.format.distance($0) + " before" }
+            return reminder.leadTime.distance.map { String(localized: "\(presenter.format.distance($0)) before") }
         }
     }
 }

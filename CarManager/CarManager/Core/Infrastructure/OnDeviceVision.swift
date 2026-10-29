@@ -65,7 +65,7 @@ public struct HybridVisionAnalysisProvider: VisionAnalysisProvider {
     public init(
         vehicles: any VehicleRepository, odometer: any OdometerRepository, remote: CarVisionService?,
         receipts: CarReceiptService? = nil,
-        clock: any ClockProviding, language: String = Locale.current.language.languageCode?.identifier ?? "en"
+        clock: any ClockProviding, language: String = Bundle.main.preferredLocalizations.first ?? "en"
     ) {
         self.vehicles = vehicles
         self.odometer = odometer

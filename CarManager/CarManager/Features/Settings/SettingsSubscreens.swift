@@ -115,17 +115,17 @@ private struct UnitsSettingsView: View {
     @State private var currency = CurrencyCode.eur
 
     var body: some View {
-        SubscreenScaffold(title: "Units & language") {
-            SettingsGroup(title: "Units") {
-                SettingsLine(symbol: "gauge.with.dots.needle.33percent", title: "Distance", isFirst: true) {
-                    MenuValue(options: [(.metric, "Kilometres"), (.imperial, "Miles")], selection: $unitSystem)
+        SubscreenScaffold(title: String(localized: "Units & language")) {
+            SettingsGroup(title: String(localized: "Units")) {
+                SettingsLine(symbol: "gauge.with.dots.needle.33percent", title: String(localized: "Distance"), isFirst: true) {
+                    MenuValue(options: [(.metric, String(localized: "Kilometres")), (.imperial, String(localized: "Miles"))], selection: $unitSystem)
                         .accessibilityIdentifier("unitsPicker")
                 }
-                SettingsLine(symbol: "drop", title: "Volume", subtitle: "Follows distance") {
+                SettingsLine(symbol: "drop", title: String(localized: "Volume"), subtitle: String(localized: "Follows distance")) {
                     Text(unitSystem == .metric ? "Litres" : "Gallons").font(DS.Text.button).foregroundStyle(DS.Colors.textSecondary)
                 }
                 Button { model?.router.push(.settingsSection(.currency)) } label: {
-                    SettingsLine(symbol: "banknote", title: "Currency", subtitle: CurrencyInfo(currency).name) {
+                    SettingsLine(symbol: "banknote", title: String(localized: "Currency"), subtitle: CurrencyInfo(currency).name) {
                         HStack(spacing: 8) {
                             CurrencyBadge(info: CurrencyInfo(currency), size: 30)
                             SettingsRowChevron()
@@ -135,9 +135,9 @@ private struct UnitsSettingsView: View {
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("settingsCurrency")
             }
-            SettingsGroup(title: "Language") {
+            SettingsGroup(title: String(localized: "Language")) {
                 Button { if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) } } label: {
-                    SettingsLine(symbol: "globe", title: "App language", subtitle: "Changed in iOS Settings", isFirst: true) {
+                    SettingsLine(symbol: "globe", title: String(localized: "App language"), subtitle: String(localized: "Changed in iOS Settings"), isFirst: true) {
                         HStack(spacing: 6) {
                             Text(Locale.current.localizedString(forLanguageCode: Locale.current.language.languageCode?.identifier ?? "en") ?? "")
                                 .font(DS.Text.button).foregroundStyle(.white)
@@ -148,8 +148,8 @@ private struct UnitsSettingsView: View {
                 .buttonStyle(.plain)
             }
             Footnote(text: unitSystem == .metric
-                     ? "Consumption is shown as L/100 km. Switching to miles changes it to mpg everywhere."
-                     : "Consumption is shown as mpg (US). Your records stay stored in metric.")
+                     ? String(localized: "Consumption is shown as L/100 km. Switching to miles changes it to mpg everywhere.")
+                     : String(localized: "Consumption is shown as mpg (US). Your records stay stored in metric."))
         }
         // onAppear, not task: coming back from the currency list must show the new choice.
         .onAppear {
@@ -170,13 +170,13 @@ private struct NotificationSettingsView: View {
     @State private var system: NotificationAuthorization?
 
     var body: some View {
-        SubscreenScaffold(title: "Notifications") {
-            SettingsGroup(title: "What to send") {
-                SettingsLine(symbol: "bell", title: "Reminders", subtitle: "Insurance, service, inspection, documents", isFirst: true) {
+        SubscreenScaffold(title: String(localized: "Notifications")) {
+            SettingsGroup(title: String(localized: "What to send")) {
+                SettingsLine(symbol: "bell", title: String(localized: "Reminders"), subtitle: String(localized: "Insurance, service, inspection, documents"), isFirst: true) {
                     Toggle("", isOn: $enabled).labelsHidden().tint(DS.Colors.accent)
                 }
             }
-            Footnote(text: "Date reminders notify ahead of time. Mileage reminders show in the app as you log the odometer — iOS can't trigger on distance.")
+            Footnote(text: String(localized: "Date reminders notify ahead of time. Mileage reminders show in the app as you log the odometer — iOS can't trigger on distance."))
             if system == .denied {
                 HStack(spacing: 12) {
                     Image(systemName: "info.circle").foregroundStyle(DS.Colors.warning)
@@ -218,14 +218,14 @@ private struct AccountSettingsView: View {
     private var profile: UserProfile? { model?.auth.state.profile }
 
     var body: some View {
-        SubscreenScaffold(title: "Account") {
+        SubscreenScaffold(title: String(localized: "Account")) {
             VStack(spacing: 6) {
                 Text(initials)
                     .font(DS.Text.avatar).foregroundStyle(.white)
                     .frame(width: 64, height: 64)
                     .background(Circle().fill(DS.Gradients.accentButton))
                     .padding(.bottom, 6)
-                Text(profile?.displayName ?? "Driver").font(DS.Text.identityName).foregroundStyle(.white)
+                Text(profile?.displayName ?? String(localized: "Driver")).font(DS.Text.identityName).foregroundStyle(.white)
                 if profile?.hasPrivateRelayEmail == true {
                     Text("Private email via Apple").font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
                 } else if let email = profile?.email {
@@ -243,24 +243,24 @@ private struct AccountSettingsView: View {
                     draftName = profile?.displayName ?? ""
                     editingName = true
                 } label: {
-                    SettingsLine(symbol: "pencil", title: "Display name", subtitle: "Shown in greetings and your profile", isFirst: true) {
+                    SettingsLine(symbol: "pencil", title: String(localized: "Display name"), subtitle: String(localized: "Shown in greetings and your profile"), isFirst: true) {
                         SettingsRowChevron()
                     }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("accountEditName")
                 Button { confirmingSignOut = true } label: {
-                    SettingsLine(symbol: "rectangle.portrait.and.arrow.right", title: "Sign out") { EmptyView() }
+                    SettingsLine(symbol: "rectangle.portrait.and.arrow.right", title: String(localized: "Sign out")) { EmptyView() }
                 }
                 .buttonStyle(.plain)
                 Button { confirmingDelete = true } label: {
-                    SettingsLine(symbol: "trash", title: "Delete account", subtitle: "Erases all your data, including iCloud") { EmptyView() }
+                    SettingsLine(symbol: "trash", title: String(localized: "Delete account"), subtitle: String(localized: "Erases all your data, including iCloud")) { EmptyView() }
                         .foregroundStyle(DS.Colors.danger)
                 }
                 .buttonStyle(.plain)
             }
             if let error { Text(error).font(DS.Text.caption).foregroundStyle(DS.Colors.danger) }
-            Footnote(text: "Your records sync through your own iCloud account. Signing out keeps them in iCloud.")
+            Footnote(text: String(localized: "Your records sync through your own iCloud account. Signing out keeps them in iCloud."))
             LegalLinks()
         }
         .alert("Display name", isPresented: $editingName) {
@@ -276,12 +276,12 @@ private struct AccountSettingsView: View {
         } message: {
             Text("Only used to show your name in the app.")
         }
-        .confirmDialog(isPresented: $confirmingSignOut, symbol: "rectangle.portrait.and.arrow.right", title: "Sign out?",
-                       message: "You'll need Sign in with Apple to come back in.", confirmTitle: "Sign out") {
+        .confirmDialog(isPresented: $confirmingSignOut, symbol: "rectangle.portrait.and.arrow.right", title: String(localized: "Sign out?"),
+                       message: String(localized: "You'll need Sign in with Apple to come back in."), confirmTitle: String(localized: "Sign out")) {
             Task { do { try await model?.auth.signOut() } catch { self.error = UserMessage.text(for: error) } }
         }
-        .confirmDialog(isPresented: $confirmingDelete, symbol: "trash", title: "Delete account?",
-                       message: "Every car, record, document and AI chat is erased — here, in iCloud and on your other devices. This can't be undone.", confirmTitle: "Delete") {
+        .confirmDialog(isPresented: $confirmingDelete, symbol: "trash", title: String(localized: "Delete account?"),
+                       message: String(localized: "Every car, record, document and AI chat is erased — here, in iCloud and on your other devices. This can't be undone."), confirmTitle: String(localized: "Delete")) {
             Task {
                 guard let model else { return }
                 let d = model.dependencies
@@ -312,24 +312,24 @@ struct SubscriptionSettingsView: View {
     @State private var message: String?
 
     var body: some View {
-        SubscreenScaffold(title: "Subscription") {
+        SubscreenScaffold(title: String(localized: "Subscription")) {
             statusCard
             SettingsGroup(title: nil) {
                 Button { Task { await model?.entitlements.openManageSubscriptions() } } label: {
-                    SettingsLine(symbol: "creditcard", title: "Manage in App Store", subtitle: "Change or cancel the plan", isFirst: true) {
+                    SettingsLine(symbol: "creditcard", title: String(localized: "Manage in App Store"), subtitle: String(localized: "Change or cancel the plan"), isFirst: true) {
                         SettingsRowChevron()
                     }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("subscriptionManage")
                 Button(action: restore) {
-                    SettingsLine(symbol: "arrow.down.circle", title: "Restore purchases", subtitle: "Signed in with Apple") {
+                    SettingsLine(symbol: "arrow.down.circle", title: String(localized: "Restore purchases"), subtitle: String(localized: "Signed in with Apple")) {
                         SettingsRowChevron()
                     }
                 }
                 .buttonStyle(.plain)
                 Button { model?.router.present(.paywall(.settingsUpgrade)) } label: {
-                    SettingsLine(symbol: "info.circle", title: "What Premium includes", subtitle: "Scans, unlimited AI, more vehicles") {
+                    SettingsLine(symbol: "info.circle", title: String(localized: "What Premium includes"), subtitle: String(localized: "Scans, unlimited AI, more vehicles")) {
                         SettingsRowChevron()
                     }
                 }
@@ -337,7 +337,7 @@ struct SubscriptionSettingsView: View {
                 .accessibilityIdentifier("subscriptionUpgrade")
             }
             if let message { Footnote(text: message) }
-            Footnote(text: "Billing is handled by Apple. We never see your card details.")
+            Footnote(text: String(localized: "Billing is handled by Apple. We never see your card details."))
             LegalLinks()
         }
     }
@@ -371,18 +371,18 @@ struct SubscriptionSettingsView: View {
     }
 
     private func detail(_ entitlement: Entitlement, premium: Bool) -> String {
-        guard premium else { return "One vehicle, \(FeatureGating.freeDailyAIRequests) AI questions a day." }
-        guard let expires = entitlement.expiresAt else { return "Active" }
+        guard premium else { return String(localized: "One vehicle, \(FeatureGating.freeDailyAIRequests) AI questions a day.") }
+        guard let expires = entitlement.expiresAt else { return String(localized: "Active") }
         let date = expires.formatted(date: .abbreviated, time: .omitted)
-        return entitlement.willAutoRenew ? "Renews \(date)" : "Ends \(date)"
+        return entitlement.willAutoRenew ? String(localized: "Renews \(date)") : String(localized: "Ends \(date)")
     }
 
     private func restore() {
         Task {
             do {
                 switch try await model?.entitlements.restore() {
-                case .restored: message = "Purchases restored."
-                default: message = "Nothing to restore for this Apple ID."
+                case .restored: message = String(localized: "Purchases restored.")
+                default: message = String(localized: "Nothing to restore for this Apple ID.")
                 }
             } catch {
                 message = UserMessage.text(for: error)
@@ -397,17 +397,17 @@ struct ManageVehiclesView: View {
     @Environment(\.appModel) private var model
 
     var body: some View {
-        SubscreenScaffold(title: "Vehicles") {
+        SubscreenScaffold(title: String(localized: "Vehicles")) {
             SettingsGroup(title: nil) {
                 ForEach(Array((model?.vehicles.summaries ?? []).enumerated()), id: \.element.id) { index, summary in
                     Button { model?.router.push(.vehicleDetail(summary.id), in: .profile) } label: {
                         SettingsLine(symbol: "car", title: summary.displayName,
-                                     subtitle: summary.isDefault ? "Default" : nil, isFirst: index == 0) { SettingsRowChevron() }
+                                     subtitle: summary.isDefault ? String(localized: "Default") : nil, isFirst: index == 0) { SettingsRowChevron() }
                     }
                     .buttonStyle(.plain)
                 }
             }
-            SaveButton(title: "Add vehicle", symbol: "plus") { model?.router.present(.vehicleEditor(.create)) }
+            SaveButton(title: String(localized: "Add vehicle"), symbol: "plus") { model?.router.present(.vehicleEditor(.create)) }
         }
     }
 }
@@ -416,7 +416,7 @@ struct DefaultVehicleView: View {
     @Environment(\.appModel) private var model
 
     var body: some View {
-        SubscreenScaffold(title: "Default vehicle") {
+        SubscreenScaffold(title: String(localized: "Default vehicle")) {
             SettingsGroup(title: nil) {
                 ForEach(Array((model?.vehicles.summaries ?? []).enumerated()), id: \.element.id) { index, summary in
                     Button { Task { await model?.vehicles.select(summary.id) } } label: {
@@ -434,34 +434,71 @@ struct DefaultVehicleView: View {
 // MARK: - Support, legal, about
 
 struct SupportSettingsView: View {
-    var body: some View { LegalSettingsView(title: "Support") }
+    var body: some View { LegalSettingsView(title: String(localized: "Support"), showsContact: true) }
+}
+
+/// Where users write to. A mailto link, so the reply comes from a real person's inbox.
+enum SupportContact {
+    static let email = "gettogethercomp@gmail.com"
+
+    static var mailURL: URL? {
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = email
+        components.queryItems = [URLQueryItem(name: "subject", value: String(localized: "AI Car Manager \(Bundle.main.appVersionString)"))]
+        return components.url
+    }
 }
 
 struct LegalSettingsView: View {
-    var title = "Legal"
+    var title = String(localized: "Legal")
+    var showsContact = false
     @Environment(\.appModel) private var model
+    @Environment(\.openURL) private var openURL
+    @State private var showsEmail = false
 
     var body: some View {
         SubscreenScaffold(title: title) {
             SettingsGroup(title: nil) {
+                if showsContact {
+                    Button(action: contactUs) {
+                        SettingsLine(symbol: "envelope", title: String(localized: "Contact us"), isFirst: true) { SettingsRowChevron() }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("supportContact")
+                }
                 Button { model?.router.present(.legal(.privacyPolicy)) } label: {
-                    SettingsLine(symbol: "hand.raised", title: "Privacy Policy", isFirst: true) { SettingsRowChevron() }
+                    SettingsLine(symbol: "hand.raised", title: String(localized: "Privacy Policy"), isFirst: !showsContact) { SettingsRowChevron() }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("legalPrivacy")
                 Button { model?.router.present(.legal(.termsOfUse)) } label: {
-                    SettingsLine(symbol: "doc.text", title: "Terms of Use") { SettingsRowChevron() }
+                    SettingsLine(symbol: "doc.text", title: String(localized: "Terms of Use")) { SettingsRowChevron() }
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("legalTerms")
             }
-            Footnote(text: "Version \(Bundle.main.appVersionString)")
+            Footnote(text: String(localized: "Version \(Bundle.main.appVersionString)"))
+        }
+        // No mail app set up: show the address so it can be copied into any other one.
+        .alert("Contact us", isPresented: $showsEmail) {
+            Button("Copy address") { UIPasteboard.general.string = SupportContact.email }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Write to us at \(SupportContact.email)")
+        }
+    }
+
+    private func contactUs() {
+        guard let url = SupportContact.mailURL else { showsEmail = true; return }
+        openURL(url) { accepted in
+            if !accepted { showsEmail = true }
         }
     }
 }
 
 struct AboutView: View {
-    var body: some View { LegalSettingsView(title: "About") }
+    var body: some View { LegalSettingsView(title: String(localized: "About")) }
 }
 
 // MARK: - Currency
@@ -545,7 +582,7 @@ struct CurrencyPickerView: View {
     }
 
     var body: some View {
-        SubscreenScaffold(title: "Currency") {
+        SubscreenScaffold(title: String(localized: "Currency")) {
             hero
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").font(.system(size: 14, weight: .medium)).foregroundStyle(DS.Colors.textSecondary)
@@ -558,23 +595,23 @@ struct CurrencyPickerView: View {
             .dsGlass(radius: 22)
 
             if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                list("Popular", popular)
-                list("All currencies", CurrencyInfo.all.filter { !CurrencyInfo.popular.contains($0.code) })
+                list(String(localized: "Popular"), popular)
+                list(String(localized: "All currencies"), CurrencyInfo.all.filter { !CurrencyInfo.popular.contains($0.code) })
             } else if results.isEmpty {
                 Text("No currency matches “\(query)”.").font(DS.Text.subheadlineRegular).foregroundStyle(DS.Colors.textSecondary)
             } else {
                 list(nil, results)
             }
-            Footnote(text: "Used for cars you add from now on. A car keeps the currency it was created with, so its history never gets converted at a made-up rate.")
+            Footnote(text: String(localized: "Used for cars you add from now on. A car keeps the currency it was created with, so its history never gets converted at a made-up rate."))
         }
         .scrollDismissesKeyboard(.interactively)
         .onAppear { selected = model?.dependencies.preferences.defaultCurrency ?? .eur }
         .confirmDialog(
             isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
             symbol: "arrow.left.arrow.right.circle",
-            title: "Switch to \(pending.map { CurrencyInfo($0).name } ?? "")?",
+            title: String(localized: "Switch to \(pending.map { CurrencyInfo($0).name } ?? "")?"),
             message: pending.map(warning) ?? "",
-            confirmTitle: "Use \(pending?.iso4217 ?? "")",
+            confirmTitle: String(localized: "Use \(pending?.iso4217 ?? "")"),
             tone: .accent
         ) {
             if let pending { apply(pending) }
@@ -586,7 +623,7 @@ struct CurrencyPickerView: View {
         return HStack(spacing: 16) {
             CurrencyBadge(info: info, size: 56, selected: true)
             VStack(alignment: .leading, spacing: 2) {
-                Eyebrow(text: "Selected")
+                Eyebrow(text: String(localized: "Selected"))
                 Text(info.name).font(DS.Text.section).foregroundStyle(.white).lineLimit(1).minimumScaleFactor(0.8)
                 Text(sample(info)).font(DS.Text.caption).foregroundStyle(DS.Colors.onCardSecondary).monospacedDigit()
             }
@@ -658,12 +695,13 @@ struct CurrencyPickerView: View {
     private func warning(for code: CurrencyCode) -> String {
         let new = CurrencyInfo(code)
         let names = existingCars.map(\.displayName)
-        let cars = names.count <= 2 ? names.joined(separator: " and ") : "your \(names.count) cars"
-        return """
-        Only cars you add from now on will use \(new.name). \(cars.prefix(1).uppercased() + cars.dropFirst()) keep \(names.count == 1 ? "its" : "their") current currency, so \(names.count == 1 ? "its" : "their") history and statistics stay exactly as they are.
-
-        Amounts are never converted: a car's totals only count records in that car's currency.
-        """
+        let kept = switch names.count {
+        case 1: String(localized: "\(names[0]) keeps its current currency, so its history and statistics stay exactly as they are.")
+        case 2: String(localized: "\(names.formatted(.list(type: .and))) keep their current currency, so their history and statistics stay exactly as they are.")
+        default: String(localized: "Your \(names.count) cars keep their current currency, so their history and statistics stay exactly as they are.")
+        }
+        return String(localized: "Only cars you add from now on will use \(new.name).") + " " + kept + "\n\n"
+            + String(localized: "Amounts are never converted: a car's totals only count records in that car's currency.")
     }
 }
 

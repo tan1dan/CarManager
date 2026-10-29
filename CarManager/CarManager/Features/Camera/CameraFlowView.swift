@@ -11,8 +11,8 @@ struct CameraFlowView: View {
         case .receipt: ReceiptScanFlowView()
         case .dashboard: DashboardScannerView()
         case .damage: DamageAnalysisView()
-        case .plate: PlaceholderCameraView(title: "Scan License Plate")
-        case .vehiclePhoto: PlaceholderCameraView(title: "Vehicle Photo")
+        case .plate: PlaceholderCameraView(title: String(localized: "Scan License Plate"))
+        case .vehiclePhoto: PlaceholderCameraView(title: String(localized: "Vehicle Photo"))
         }
     }
 }
@@ -24,8 +24,8 @@ struct PlaceholderCameraView: View {
     @Environment(\.appModel) private var model
 
     var body: some View {
-        ScanMessageView(symbol: "camera", title: title, message: "This scan arrives in a later update.",
-                        primaryTitle: "Close") { model?.router.dismissFullScreen() }
+        ScanMessageView(symbol: "camera", title: title, message: String(localized: "This scan arrives in a later update."),
+                        primaryTitle: String(localized: "Close")) { model?.router.dismissFullScreen() }
             .background(DS.Colors.background.ignoresSafeArea())
             .environment(\.colorScheme, .dark)
     }
@@ -37,20 +37,20 @@ struct DisclaimerAcknowledgementView: View {
     @Environment(\.appModel) private var model
 
     private var title: String {
-        kind == .notProfessionalDiagnostics ? "AI reads the lights, not the car" : "Estimates, not quotes"
+        kind == .notProfessionalDiagnostics ? String(localized: "AI reads the lights, not the car") : String(localized: "Estimates, not quotes")
     }
 
     private var points: [(String, String)] {
         switch kind {
         case .notProfessionalDiagnostics: [
-            ("eye", "It sees only what is in the photo — it cannot read fault codes or hear the engine."),
-            ("exclamationmark.triangle", "A red or flashing light can mean stop now. When in doubt, stop safely and call a mechanic."),
-            ("lock.shield", "The photo is sent to our AI provider for analysis, without location data.")
+            ("eye", String(localized: "It sees only what is in the photo — it cannot read fault codes or hear the engine.")),
+            ("exclamationmark.triangle", String(localized: "A red or flashing light can mean stop now. When in doubt, stop safely and call a mechanic.")),
+            ("lock.shield", String(localized: "The photo is sent to our AI provider for analysis, without location data."))
         ]
         case .costEstimateOnly: [
-            ("camera.viewfinder", "It judges only what is visible. Hidden or structural damage may be missed."),
-            ("eurosign.circle", "Costs are rough ranges for an independent workshop, never a quote."),
-            ("lock.shield", "Photos are sent to our AI provider for analysis, without location data.")
+            ("camera.viewfinder", String(localized: "It judges only what is visible. Hidden or structural damage may be missed.")),
+            ("eurosign.circle", String(localized: "Costs are rough ranges for an independent workshop, never a quote.")),
+            ("lock.shield", String(localized: "Photos are sent to our AI provider for analysis, without location data."))
         ]
         }
     }
@@ -77,7 +77,7 @@ struct DisclaimerAcknowledgementView: View {
                 .font(DS.Text.caption.weight(.semibold))
                 .foregroundStyle(DS.Colors.accent)
             Spacer()
-            SaveButton(title: "I understand") {
+            SaveButton(title: String(localized: "I understand")) {
                 model?.acknowledgeDisclaimer(kind)
                 model?.router.dismissModal()
                 // Replay whatever the guard intercepted.

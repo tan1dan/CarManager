@@ -26,9 +26,9 @@ struct VehicleDetailsView: View {
         .dsScreen()
         .confirmDialog(
             isPresented: Binding(get: { viewModel?.isConfirmingDelete ?? false }, set: { viewModel?.isConfirmingDelete = $0 }),
-            title: "Delete \(presentation?.name ?? "vehicle")?",
-            message: "Its fuel, service, expenses and documents are deleted from iCloud too. This cannot be undone.",
-            confirmTitle: "Delete vehicle"
+            title: presentation.map { String(localized: "Delete \($0.name)?") } ?? String(localized: "Delete vehicle?"),
+            message: String(localized: "Its fuel, service, expenses and documents are deleted from iCloud too. This cannot be undone."),
+            confirmTitle: String(localized: "Delete vehicle")
         ) {
             Task { await viewModel?.delete(vehicleID: vehicleID) }
         }
@@ -60,7 +60,7 @@ struct VehicleDetailsView: View {
                 .padding(.horizontal, DS.Layout.gutter)
                 .accessibilityIdentifier("vehicleDelete")
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load this vehicle", message: error.messageKey)
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load this vehicle"), message: error.messageKey)
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
         }
@@ -136,7 +136,7 @@ struct VehicleDetailsView: View {
     private func costCard(_ cost: (value: String, bars: [Double?], labels: [String])) -> some View {
         HStack(alignment: .bottom, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Eyebrow(text: "Cost per month")
+                Eyebrow(text: String(localized: "Cost per month"))
                 Text(cost.value).font(DS.Text.headline).tracking(DS.Text.headlineTracking).foregroundStyle(.white)
                 Text("avg. last 6 months").font(DS.Text.statCaption).foregroundStyle(DS.Colors.textSecondary)
             }

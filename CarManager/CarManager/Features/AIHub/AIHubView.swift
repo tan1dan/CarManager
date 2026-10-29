@@ -180,8 +180,8 @@ struct AIHubView: View {
         case .empty:
             SettingsRowView(
                 symbolName: "message",
-                title: "Start a conversation",
-                subtitle: "Ask anything about your car",
+                title: String(localized: "Start a conversation"),
+                subtitle: String(localized: "Ask anything about your car"),
                 action: { open(.chat) }
             ) {
                 SettingsRowChevron()

@@ -4,71 +4,71 @@ import Foundation
 /// `ErrorPresenter` stay the contract for localisation; this is their English rendering.
 enum UserMessage {
     static func text(for error: any Error) -> String {
-        guard let error = error as? DomainError else { return "Something went wrong. Please try again." }
+        guard let error = error as? DomainError else { return String(localized: "Something went wrong. Please try again.") }
         switch error {
         case .validation(let v): return text(for: v)
-        case .persistence: return "Couldn't save. Please try again."
-        case .subscription(.vehicleLimitReached): return "Your plan includes one vehicle."
-        case .subscription: return "This needs Premium."
-        case .ai(.offline): return "You're offline. AI needs a connection."
-        case .ai(.quotaExceeded): return "You've used today's free questions."
-        case .ai(.timedOut): return "The assistant took too long to answer. Try again."
-        case .ai(.rateLimited): return "Too many questions right now. Wait a minute and try again."
-        case .ai(.unauthorized): return "The assistant isn't available for this app version. Please update the app."
-        case .ai(.invalidRequest): return "The assistant couldn't accept that message. Try rephrasing it."
-        case .ai(.serverError): return "The assistant is having trouble right now. Try again in a moment."
-        case .ai(.structuredOutputInvalid): return "The assistant sent an answer the app couldn't read. Try again."
-        case .ai(.notConfigured): return "The AI assistant isn't set up in this build."
-        case .ai(.messageTooLong(let max)): return "That message is too long — keep it under \(max) characters."
-        case .ai(.transport): return "Couldn't reach the assistant. Check your connection and try again."
-        case .ai(.notAReceipt): return "That doesn't look like a receipt. Try again with the whole receipt in frame."
-        case .ai(.noTextRecognized): return "No text found. Try again with the whole receipt in frame and good light."
-        case .ai(.providerUnavailable): return "AI photo analysis isn't connected yet. It arrives with the AI service."
-        case .ai(.requiresPremium): return "This needs Premium."
-        case .ai: return "The assistant couldn't answer. Please try again."
-        case .document(.unsupportedType): return "That file type isn't supported."
-        case .document(.fileTooLarge): return "That file is too large (50 MB max)."
-        case .document: return "Couldn't read the file. Please try again."
-        case .cancelled: return "Cancelled."
-        default: return "Something went wrong. Please try again."
+        case .persistence: return String(localized: "Couldn't save. Please try again.")
+        case .subscription(.vehicleLimitReached): return String(localized: "Your plan includes one vehicle.")
+        case .subscription: return String(localized: "This needs Premium.")
+        case .ai(.offline): return String(localized: "You're offline. AI needs a connection.")
+        case .ai(.quotaExceeded): return String(localized: "You've used today's free questions.")
+        case .ai(.timedOut): return String(localized: "The assistant took too long to answer. Try again.")
+        case .ai(.rateLimited): return String(localized: "Too many questions right now. Wait a minute and try again.")
+        case .ai(.unauthorized): return String(localized: "The assistant isn't available for this app version. Please update the app.")
+        case .ai(.invalidRequest): return String(localized: "The assistant couldn't accept that message. Try rephrasing it.")
+        case .ai(.serverError): return String(localized: "The assistant is having trouble right now. Try again in a moment.")
+        case .ai(.structuredOutputInvalid): return String(localized: "The assistant sent an answer the app couldn't read. Try again.")
+        case .ai(.notConfigured): return String(localized: "The AI assistant isn't set up in this build.")
+        case .ai(.messageTooLong(let max)): return String(localized: "That message is too long — keep it under \(max) characters.")
+        case .ai(.transport): return String(localized: "Couldn't reach the assistant. Check your connection and try again.")
+        case .ai(.notAReceipt): return String(localized: "That doesn't look like a receipt. Try again with the whole receipt in frame.")
+        case .ai(.noTextRecognized): return String(localized: "No text found. Try again with the whole receipt in frame and good light.")
+        case .ai(.providerUnavailable): return String(localized: "AI photo analysis isn't connected yet. It arrives with the AI service.")
+        case .ai(.requiresPremium): return String(localized: "This needs Premium.")
+        case .ai: return String(localized: "The assistant couldn't answer. Please try again.")
+        case .document(.unsupportedType): return String(localized: "That file type isn't supported.")
+        case .document(.fileTooLarge): return String(localized: "That file is too large (50 MB max).")
+        case .document: return String(localized: "Couldn't read the file. Please try again.")
+        case .cancelled: return String(localized: "Cancelled.")
+        default: return String(localized: "Something went wrong. Please try again.")
         }
     }
 
     static func text(for error: ValidationError) -> String {
         switch error {
-        case .emptyField(let field): "Enter \(name(field))."
-        case .negativeAmount(let field): "\(name(field).capitalized) can't be negative."
-        case .nonPositiveVolume: "Enter how much fuel went in."
-        case .futureDate: "That date is in the future."
-        case .expirationBeforeStart: "The expiry date is before the start date."
-        case .odometerRegression: "That mileage is lower than the last reading."
-        case .invalidVIN: "That VIN doesn't look right."
-        case .noServiceItems: "Choose at least one service item."
-        case .nonPositiveInterval: "The interval must be more than zero."
-        case .triggerMismatch: "The reminder type and its trigger don't match."
-        case .vehicleNotFound: "This vehicle no longer exists."
-        case .invalidEmail, .weakPassword, .termsNotAccepted: "Check the details and try again."
+        case .emptyField(let field): String(localized: "Enter \(name(field)).")
+        case .negativeAmount(let field): String(localized: "\(name(field).capitalized) can't be negative.")
+        case .nonPositiveVolume: String(localized: "Enter how much fuel went in.")
+        case .futureDate: String(localized: "That date is in the future.")
+        case .expirationBeforeStart: String(localized: "The expiry date is before the start date.")
+        case .odometerRegression: String(localized: "That mileage is lower than the last reading.")
+        case .invalidVIN: String(localized: "That VIN doesn't look right.")
+        case .noServiceItems: String(localized: "Choose at least one service item.")
+        case .nonPositiveInterval: String(localized: "The interval must be more than zero.")
+        case .triggerMismatch: String(localized: "The reminder type and its trigger don't match.")
+        case .vehicleNotFound: String(localized: "This vehicle no longer exists.")
+        case .invalidEmail, .weakPassword, .termsNotAccepted: String(localized: "Check the details and try again.")
         }
     }
 
     static func text(for warning: DomainWarning) -> String {
         switch warning {
-        case .odometerRegression: "Saved — the mileage is lower than an earlier reading, check it when you can."
-        case .priceTotalMismatch: "Saved — litres × price doesn't match the total exactly."
-        case .notificationsNotAuthorized: "Saved — turn on notifications in Settings to be reminded."
-        case .itemCostsExceedTotal: "Saved — item costs add up to more than the total."
-        case .malformedVIN: "Saved — the VIN isn't 17 characters."
+        case .odometerRegression: String(localized: "Saved — the mileage is lower than an earlier reading, check it when you can.")
+        case .priceTotalMismatch: String(localized: "Saved — litres × price doesn't match the total exactly.")
+        case .notificationsNotAuthorized: String(localized: "Saved — turn on notifications in Settings to be reminded.")
+        case .itemCostsExceedTotal: String(localized: "Saved — item costs add up to more than the total.")
+        case .malformedVIN: String(localized: "Saved — the VIN isn't 17 characters.")
         }
     }
 
     private static func name(_ field: FieldID) -> String {
         switch field {
-        case .totalCost: "the total cost"
-        case .pricePerUnit: "the price per litre"
-        case .licensePlate: "the licence plate"
-        case .serviceItems: "a service item"
-        case .expirationDate: "an expiry date"
-        case .startDate: "a start date"
+        case .totalCost: String(localized: "the total cost")
+        case .pricePerUnit: String(localized: "the price per litre")
+        case .licensePlate: String(localized: "the licence plate")
+        case .serviceItems: String(localized: "a service item")
+        case .expirationDate: String(localized: "an expiry date")
+        case .startDate: String(localized: "a start date")
         default: "the \(field.rawValue)"
         }
     }

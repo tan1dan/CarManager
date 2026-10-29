@@ -95,13 +95,19 @@ final class ReceiptScanViewModel {
         case .converted:
             guard let printed, let rate = conversion.rate, let from = conversion.from else { return nil }
             let rateText = format.decimal(rate.doubleValue, digits: 4)
-            let when = conversion.rateDate.map { " on \($0)" } ?? ""
-            let source = conversion.source.map { $0.hasPrefix("ECB") ? "ECB" : "market" } ?? "published"
-            return ("Receipt total \(printed). Converted to \(conversion.to.iso4217) at the \(source) rate 1 \(from.iso4217) = \(rateText) \(conversion.to.iso4217)\(when).", .accent)
+            let to = conversion.to.iso4217
+            let isECB = conversion.source?.hasPrefix("ECB") ?? false
+            var text = isECB
+                ? String(localized: "Receipt total \(printed). Converted to \(to) at the ECB rate 1 \(from.iso4217) = \(rateText) \(to).")
+                : String(localized: "Receipt total \(printed). Converted to \(to) at the market rate 1 \(from.iso4217) = \(rateText) \(to).")
+            if let date = conversion.rateDate { text += " " + String(localized: "Rate of \(date).") }
+            return (text, .accent)
         case .rateUnavailable:
-            return ("Receipt total \(printed ?? "in another currency"). No exchange rate is available — enter the amount in \(conversion.to.iso4217).", .warning)
+            let text = printed.map { String(localized: "Receipt total \($0). No exchange rate is available — enter the amount in \(conversion.to.iso4217).") }
+                ?? String(localized: "The receipt is in another currency. No exchange rate is available — enter the amount in \(conversion.to.iso4217).")
+            return (text, .warning)
         case .unknownCurrency:
-            return ("The receipt's currency couldn't be read. Enter the amount in \(conversion.to.iso4217).", .warning)
+            return (String(localized: "The receipt's currency couldn't be read. Enter the amount in \(conversion.to.iso4217)."), .warning)
         }
     }
 
@@ -117,17 +123,17 @@ final class ReceiptScanViewModel {
         guard let warnings = original?.warnings else { return [] }
         return ReceiptWarning.allCases.filter(warnings.contains).compactMap { warning in
             switch warning {
-            case .blurry, .faded: "The photo is hard to read — check every value."
-            case .cutOff: "Part of the receipt is cut off."
-            case .handwritten: "Handwritten receipt — check the amounts."
-            case .multipleReceipts: "More than one receipt in the photo; only one was read."
-            case .refund: "This looks like a refund."
-            case .mathMismatch: "Litres × price doesn't match the amount on the receipt."
-            case .tipIncluded: "The total includes a tip."
-            case .notCarRelated: "This doesn't look car-related."
-            case .partialPayment: "Only part of the bill seems to be paid here."
-            case .unreadable: "Most of the receipt couldn't be read."
-            case .readOnDevice: "No connection — read on this iPhone only, so fewer details were found."
+            case .blurry, .faded: String(localized: "The photo is hard to read — check every value.")
+            case .cutOff: String(localized: "Part of the receipt is cut off.")
+            case .handwritten: String(localized: "Handwritten receipt — check the amounts.")
+            case .multipleReceipts: String(localized: "More than one receipt in the photo; only one was read.")
+            case .refund: String(localized: "This looks like a refund.")
+            case .mathMismatch: String(localized: "Litres × price doesn't match the amount on the receipt.")
+            case .tipIncluded: String(localized: "The total includes a tip.")
+            case .notCarRelated: String(localized: "This doesn't look car-related.")
+            case .partialPayment: String(localized: "Only part of the bill seems to be paid here.")
+            case .unreadable: String(localized: "Most of the receipt couldn't be read.")
+            case .readOnDevice: String(localized: "No connection — read on this iPhone only, so fewer details were found.")
             case .foreignCurrency: nil
             }
         }
@@ -135,8 +141,16 @@ final class ReceiptScanViewModel {
 
     /// The least certain field the user should look at, if any.
     var lowConfidenceField: String? {
-        let names: [(Field, String)] = [(.total, "Total"), (.date, "Date"), (.vendor, "Merchant"), (.category, "Category")]
+        let names: [(Field, String)] = [(.total, String(localized: "Total")), (.date, String(localized: "Date")), (.vendor, String(localized: "Merchant")), (.category, String(localized: "Category"))]
         return names.first { (confidences[$0.0] ?? 0) < 0.6 }?.1
+    }
+
+    var saveTitle: String {
+        switch kind {
+        case .fuel: String(localized: "Save as fuel")
+        case .service: String(localized: "Save as service")
+        case .expense: String(localized: "Save as expense")
+        }
     }
 
     var canSave: Bool {

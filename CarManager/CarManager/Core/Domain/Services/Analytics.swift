@@ -104,13 +104,13 @@ public enum CostLedger {
     ) -> [CostEntry] {
         let fuelEntries = fuel.map {
             CostEntry(id: "fuel-\($0.id)", vehicleID: $0.vehicleID, date: $0.date, amount: $0.totalCost,
-                      category: .fuel, odometer: $0.odometer, origin: .fuel($0.id), title: $0.station ?? "Fill-up")
+                      category: .fuel, odometer: $0.odometer, origin: .fuel($0.id), title: $0.station ?? String(localized: "Fill-up"))
         }
         let serviceEntries = services.map { record in
             CostEntry(id: "service-\(record.id)", vehicleID: record.vehicleID, date: record.date,
                       amount: record.totalCost, category: record.isRepair ? .repairs : .maintenance,
                       odometer: record.odometer, origin: .service(record.id),
-                      title: record.items.first?.name ?? "Service")
+                      title: record.items.first?.name ?? String(localized: "Service"))
         }
         let expenseEntries = expenses.map {
             CostEntry(id: "expense-\($0.id)", vehicleID: $0.vehicleID, date: $0.date, amount: $0.cost,

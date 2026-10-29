@@ -278,7 +278,7 @@ public struct ConfirmReceiptScan: Sendable {
 
         case .service:
             let items = confirmed.serviceItems.isEmpty
-                ? [ServiceItem(type: .other, name: confirmed.vendor ?? "Service")]
+                ? [ServiceItem(type: .other, name: confirmed.vendor ?? String(localized: "Service"))]
                 : confirmed.serviceItems
             let output = try await addService(
                 vehicleID: confirmed.vehicleID, date: confirmed.date,
@@ -291,7 +291,7 @@ public struct ConfirmReceiptScan: Sendable {
         case .expense:
             let expense = try await addExpense(
                 vehicleID: confirmed.vehicleID,
-                title: confirmed.vendor ?? "Expense",
+                title: confirmed.vendor ?? String(localized: "Expense"),
                 category: confirmed.expenseCategory, cost: confirmed.total,
                 date: confirmed.date, odometerValue: confirmed.odometer,
                 source: .receiptScan(confirmed.scanID)

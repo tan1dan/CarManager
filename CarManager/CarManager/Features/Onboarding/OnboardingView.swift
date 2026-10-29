@@ -77,8 +77,8 @@ struct OnboardingView: View {
     /// Internal scheme so a tap opens the in-app document instead of Safari.
     private static let legalText: AttributedString = {
         (try? AttributedString(markdown:
-            "By continuing you agree to the [Terms](carmanager-legal://terms) and [Privacy Policy](carmanager-legal://privacy)."
-        )) ?? AttributedString("By continuing you agree to the Terms and Privacy Policy.")
+            String(localized: "By continuing you agree to the [Terms](carmanager-legal://terms) and [Privacy Policy](carmanager-legal://privacy).")
+        )) ?? AttributedString(String(localized: "By continuing you agree to the Terms and Privacy Policy."))
     }()
 }
 

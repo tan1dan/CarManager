@@ -44,7 +44,7 @@ final class PaywallViewModel {
                 router.replayPendingDestination()
             case .pending:
                 // Ask to Buy. A first-class outcome, not an error.
-                message = "Waiting for approval"
+                message = String(localized: "Waiting for approval")
             case .userCancelled:
                 break
             }
@@ -62,7 +62,7 @@ final class PaywallViewModel {
                 router.replayPendingDestination()
             case .nothingToRestore:
                 // Neutral information, never an error alert.
-                message = "Nothing to restore"
+                message = String(localized: "Nothing to restore")
             }
         } catch {
             message = ErrorPresenter.present(error).messageKey

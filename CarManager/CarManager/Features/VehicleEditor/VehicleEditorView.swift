@@ -150,21 +150,21 @@ private struct VehicleEditorContentView: View {
 
     private var fields: some View {
         VStack(spacing: 0) {
-            pickerRow("Brand", value: viewModel.draft.brand, destination: .brand, id: "vehicleBrand")
+            pickerRow(String(localized: "Brand"), value: viewModel.draft.brand, destination: .brand, id: "vehicleBrand")
             SettingsRowSeparator()
             pickerRow(
-                "Model", value: viewModel.draft.model, destination: .model, id: "vehicleModel",
+                String(localized: "Model"), value: viewModel.draft.model, destination: .model, id: "vehicleModel",
                 isEnabled: !viewModel.draft.brand.isEmpty,
-                placeholder: viewModel.draft.brand.isEmpty ? "Choose brand first" : "Select"
+                placeholder: viewModel.draft.brand.isEmpty ? String(localized: "Choose brand first") : String(localized: "Select")
             )
             SettingsRowSeparator()
             pickerRow(
-                "Year", value: viewModel.draft.year.map(String.init) ?? "",
+                String(localized: "Year"), value: viewModel.draft.year.map(String.init) ?? "",
                 destination: .year, id: "vehicleYear"
             )
             SettingsRowSeparator()
             pickerRow(
-                "Fuel type", value: viewModel.draft.fuelType.displayName,
+                String(localized: "Fuel type"), value: viewModel.draft.fuelType.displayName,
                 destination: .fuel, id: "vehicleFuel"
             )
             SettingsRowSeparator()
@@ -182,7 +182,7 @@ private struct VehicleEditorContentView: View {
                 // Mileage seeds the first odometer reading. After that it changes through
                 // fuel and service entries, so Edit does not offer it.
                 SettingsRowSeparator()
-                textRow("Mileage") {
+                textRow(String(localized: "Mileage")) {
                     HStack(spacing: 4) {
                         TextField("0", text: $viewModel.mileageText)
                             .keyboardType(.numberPad)
@@ -221,7 +221,7 @@ private struct VehicleEditorContentView: View {
 
     private func pickerRow(
         _ label: String, value: String, destination: VehicleEditorPicker, id: String,
-        isEnabled: Bool = true, placeholder: String = "Select"
+        isEnabled: Bool = true, placeholder: String = String(localized: "Select")
     ) -> some View {
         NavigationLink(value: destination) {
             HStack(spacing: 8) {

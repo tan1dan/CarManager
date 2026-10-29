@@ -20,13 +20,13 @@ struct PaywallPresentationModel: Equatable, Sendable {
     }
 
     static let placeholder = PaywallPresentationModel(
-        title: "Go Premium",
-        subtitle: "Unlock the full power of your AI car companion.",
+        title: String(localized: "Go Premium"),
+        subtitle: String(localized: "Unlock the full power of your AI car companion."),
         benefits: PaywallFormatter.benefits,
         plans: [],
-        callToAction: "Subscribe",
-        footerPrefix: "Cancel anytime ·",
-        restoreTitle: "Restore purchase"
+        callToAction: String(localized: "Subscribe"),
+        footerPrefix: String(localized: "Cancel anytime ·"),
+        restoreTitle: String(localized: "Restore purchase")
     )
 }
 
@@ -35,11 +35,11 @@ struct PaywallFormatter: Sendable {
     /// Wording matches the architecture's gating matrix, not the design's stale copy:
     /// iCloud sync is free, so the paywall does not claim it.
     static let benefits = [
-        "Unlimited vehicles",
-        "Advanced AI scans & damage analysis",
-        "AI insights & recommendations",
-        "PDF export of history",
-        "Priority support"
+        String(localized: "Unlimited vehicles"),
+        String(localized: "Advanced AI scans & damage analysis"),
+        String(localized: "AI insights & recommendations"),
+        String(localized: "PDF export of history"),
+        String(localized: "Priority support")
     ]
 
     func makeModel(
@@ -49,40 +49,40 @@ struct PaywallFormatter: Sendable {
         let plans = products.map { product in
             PaywallPresentationModel.Plan(
                 id: product.id,
-                name: product.id == .yearly ? "Yearly" : "Monthly",
+                name: product.id == .yearly ? String(localized: "Yearly") : String(localized: "Monthly"),
                 price: product.displayPrice,
                 caption: caption(for: product),
                 isPromoted: product.id == ProductCatalogIDs.promoted,
-                flag: "BEST"
+                flag: String(localized: "BEST")
             )
         }
 
         let selectedProduct = products.first { $0.id == selected }
         return PaywallPresentationModel(
-            title: "Go Premium",
-            subtitle: "Unlock the full power of your AI car companion.",
+            title: String(localized: "Go Premium"),
+            subtitle: String(localized: "Unlock the full power of your AI car companion."),
             benefits: Self.benefits,
             plans: plans,
             callToAction: callToAction(for: selectedProduct),
-            footerPrefix: "Cancel anytime ·",
-            restoreTitle: "Restore purchase"
+            footerPrefix: String(localized: "Cancel anytime ·"),
+            restoreTitle: String(localized: "Restore purchase")
         )
     }
 
     private func caption(for product: SubscriptionProduct) -> String {
         switch product.id {
-        case .monthly: "per month"
-        case .yearly: "2 months free"
+        case .monthly: String(localized: "per month")
+        case .yearly: String(localized: "2 months free")
         }
     }
 
     /// Only promises a trial when StoreKit says this account is actually eligible.
     private func callToAction(for product: SubscriptionProduct?) -> String {
-        guard let product else { return "Subscribe" }
+        guard let product else { return String(localized: "Subscribe") }
         if product.isEligibleForIntroOffer, let offer = product.introOfferDescription {
-            return "Start \(offer)"
+            return String(localized: "Start \(offer)")
         }
-        return "Subscribe"
+        return String(localized: "Subscribe")
     }
 }
 

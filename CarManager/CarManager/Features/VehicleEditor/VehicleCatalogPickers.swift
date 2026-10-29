@@ -42,7 +42,7 @@ struct BrandPickerView: View {
             }
         }
         .listSectionIndexVisibility(.visible)
-        .catalogPickerStyle(title: "Brand")
+        .catalogPickerStyle(title: String(localized: "Brand"))
         .searchable(
             text: $query,
             placement: .navigationBarDrawer(displayMode: .always),
@@ -135,7 +135,7 @@ struct YearPickerView: View {
     var body: some View {
         List {
             Section {
-                PickerRow(title: "Not specified", isSelected: selected == nil) { choose(nil) }
+                PickerRow(title: String(localized: "Not specified"), isSelected: selected == nil) { choose(nil) }
             }
             Section {
                 ForEach(visibleYears, id: \.self) { year in
@@ -155,7 +155,7 @@ struct YearPickerView: View {
                 }
             }
         }
-        .catalogPickerStyle(title: "Year")
+        .catalogPickerStyle(title: String(localized: "Year"))
     }
 
     private var isFiltered: Bool { modelYears != nil && !showsAllYears }
@@ -177,7 +177,7 @@ struct FuelTypePickerView: View {
                 PickerRow(title: fuel.displayName, isSelected: fuel == selected) { onSelect(fuel) }
             }
         }
-        .catalogPickerStyle(title: "Fuel type")
+        .catalogPickerStyle(title: String(localized: "Fuel type"))
     }
 }
 
@@ -246,8 +246,7 @@ private struct CatalogAttribution: View {
     /// Built as markdown so the project name is a tappable link. A plain interpolated
     /// `Text` would not parse it.
     private var attribution: AttributedString {
-        let markdown = "Brand and model data: [\(source.name)](\(source.url)), "
-            + "compiled from \(source.upstream). \(source.license)."
+        let markdown = String(localized: "Brand and model data: [\(source.name)](\(source.url)), compiled from \(source.upstream). \(source.license).")
         return (try? AttributedString(markdown: markdown)) ?? AttributedString(markdown)
     }
 

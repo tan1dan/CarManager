@@ -23,19 +23,19 @@ struct ScanHistoryFormatter: Sendable {
         switch item {
         case .dashboard(let scan):
             let names = scan.findings.map(\.warningName)
-            let title = names.isEmpty ? "No warning lights found"
-                : names.count <= 2 ? names.joined(separator: ", ") : "\(names[0]) + \(names.count - 1) more"
+            let title = names.isEmpty ? String(localized: "No warning lights found")
+                : names.count <= 2 ? names.joined(separator: ", ") : String(localized: "\(names[0]) + \(names.count - 1) more")
             return ScanHistoryRow(
                 id: item.id, symbol: "gauge.with.dots.needle.33percent", tone: Self.tone(scan.findings),
-                title: title, subtitle: "Dashboard scan · \(when)", route: .dashboardScanResult(scan.id), item: item
+                title: title, subtitle: String(localized: "Dashboard scan · \(when)"), route: .dashboardScanResult(scan.id), item: item
             )
         case .damage(let analysis):
             let title = analysis.findings.first.map { first in
-                analysis.findings.count > 1 ? "\(first.damageType) + \(analysis.findings.count - 1) more" : first.damageType
-            } ?? "No damage found"
+                analysis.findings.count > 1 ? String(localized: "\(first.damageType) + \(analysis.findings.count - 1) more") : first.damageType
+            } ?? String(localized: "No damage found")
             return ScanHistoryRow(
                 id: item.id, symbol: "car.side", tone: Self.tone(analysis.findings),
-                title: title, subtitle: "Damage analysis · \(when)", route: .damageAnalysisResult(analysis.id), item: item
+                title: title, subtitle: String(localized: "Damage analysis · \(when)"), route: .damageAnalysisResult(analysis.id), item: item
             )
         }
     }
@@ -130,7 +130,7 @@ struct ScanHistoryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Scans", onBack: { model?.router.pop() })
+                PushedHeader(title: String(localized: "Scans"), onBack: { model?.router.pop() })
                 content.padding(.horizontal, DS.Layout.gutter)
             }
             .padding(.bottom, 32)
@@ -157,14 +157,14 @@ struct ScanHistoryView: View {
                         }
                     }
             }
-            Text("Results sync through iCloud; the photos stay on this iPhone. Press and hold a scan to delete it.")
+            Text("Results and photos sync through your iCloud. Press and hold a scan to delete it.")
                 .font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
         case .empty:
-            EmptyStateView(symbol: "viewfinder", title: "No scans yet",
-                           message: "Dashboard scans and damage analyses you make are kept here.")
+            EmptyStateView(symbol: "viewfinder", title: String(localized: "No scans yet"),
+                           message: String(localized: "Dashboard scans and damage analyses you make are kept here."))
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load scans",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load scans"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)

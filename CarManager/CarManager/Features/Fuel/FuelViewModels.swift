@@ -60,7 +60,7 @@ final class FuelHistoryViewModel {
         let rows = analytics.fuelEntries.map { entry in
             FuelHistoryPresentation.Row(
                 id: entry.id,
-                title: entry.station ?? (entry.isFullTank ? "Full tank" : "Top-up"),
+                title: entry.station ?? (entry.isFullTank ? String(localized: "Full tank") : String(localized: "Top-up")),
                 subtitle: format.shortDate(entry.date, relativeTo: clock.now) + " · " + format.volume(entry.volume),
                 amount: format.money(entry.totalCost)
             )
@@ -72,7 +72,7 @@ final class FuelHistoryViewModel {
             return .init(
                 value: format.consumption(average),
                 unit: format.consumptionUnit,
-                change: change.map { format.percentChange($0) + " vs last month" },
+                change: change.map { String(localized: "\(format.percentChange($0)) vs last month") },
                 // More fuel per 100 km is worse; for mpg the sign flips, but the change is
                 // computed on L/100 km either way.
                 changeTone: (change ?? 0) > 0.005 ? .warning : (change ?? 0) < -0.005 ? .success : .neutral,

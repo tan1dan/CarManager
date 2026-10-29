@@ -56,16 +56,16 @@ final class AppleSignInViewModel {
 enum AuthMessages {
     static func text(for error: any Error) -> String {
         guard let error = error as? DomainError, case .authentication(let auth) = error else {
-            return "Something went wrong. Please try again."
+            return String(localized: "Something went wrong. Please try again.")
         }
         switch auth {
-        case .cancelled: return "Sign-in was cancelled."
-        case .invalidCredentials: return "Apple couldn't verify that sign-in. Please try again."
+        case .cancelled: return String(localized: "Sign-in was cancelled.")
+        case .invalidCredentials: return String(localized: "Apple couldn't verify that sign-in. Please try again.")
         case .appleAccountUnavailable:
-            return "Sign in with Apple isn't available. Check that you're signed into iCloud in Settings."
-        case .networkUnavailable: return "You're offline. Check your connection and try again."
-        case .requiresReauthentication: return "Please sign in again."
-        case .providerFailed: return "Something went wrong. Please try again."
+            return String(localized: "Sign in with Apple isn't available. Check that you're signed into iCloud in Settings.")
+        case .networkUnavailable: return String(localized: "You're offline. Check your connection and try again.")
+        case .requiresReauthentication: return String(localized: "Please sign in again.")
+        case .providerFailed: return String(localized: "Something went wrong. Please try again.")
         }
     }
 }

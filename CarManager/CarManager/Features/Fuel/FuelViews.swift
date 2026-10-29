@@ -9,8 +9,8 @@ struct FuelHistoryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Fuel", onBack: { model?.router.pop() }) {
-                    CircleIconButton(symbol: "plus", accessibilityLabel: "Add fuel") { add() }
+                PushedHeader(title: String(localized: "Fuel"), onBack: { model?.router.pop() }) {
+                    CircleIconButton(symbol: "plus", accessibilityLabel: String(localized: "Add fuel")) { add() }
                         .accessibilityIdentifier("fuelAdd")
                 }
                 content.padding(.horizontal, DS.Layout.gutter)
@@ -28,10 +28,10 @@ struct FuelHistoryView: View {
         switch viewModel?.state {
         case .loaded(let p):
             if let chart = p.chart { chartCard(chart) } else {
-                InfoBanner(symbol: "chart.line.uptrend.xyaxis", text: "Log two full tanks and the app starts showing your consumption.", tone: .neutral)
+                InfoBanner(symbol: "chart.line.uptrend.xyaxis", text: String(localized: "Log two full tanks and the app starts showing your consumption."), tone: .neutral)
             }
             VStack(spacing: 8) {
-                Eyebrow(text: "Fill-ups")
+                Eyebrow(text: String(localized: "Fill-ups"))
                 RowGroup(items: p.rows) { row in
                     RecordRow(symbol: "fuelpump", iconStyle: .accent, title: row.title, subtitle: row.subtitle, value: row.amount, showsChevron: false)
                         .contextMenu {
@@ -42,11 +42,11 @@ struct FuelHistoryView: View {
                 }
             }
         case .empty:
-            EmptyStateView(symbol: "drop", title: "No fill-ups yet",
-                           message: "Log a fill-up and the app starts showing consumption and cost per 100 km.",
-                           actionTitle: "Add fuel", action: add)
+            EmptyStateView(symbol: "drop", title: String(localized: "No fill-ups yet"),
+                           message: String(localized: "Log a fill-up and the app starts showing consumption and cost per 100 km."),
+                           actionTitle: String(localized: "Add fuel"), action: add)
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load fuel", message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load fuel"), message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
         }
@@ -56,7 +56,7 @@ struct FuelHistoryView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Eyebrow(text: "Avg. consumption")
+                    Eyebrow(text: String(localized: "Avg. consumption"))
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(chart.value).font(.system(size: 32, weight: .bold)).tracking(-0.8).foregroundStyle(.white)
                         Text(chart.unit).font(DS.Text.subheadlineRegular).foregroundStyle(DS.Colors.textSecondary)
@@ -94,7 +94,7 @@ struct FuelDetailsView: View {
     let entryID: FuelEntryID
     @Environment(\.appModel) private var model
     var body: some View {
-        VStack { PushedHeader(title: "Fill-up", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        VStack { PushedHeader(title: String(localized: "Fill-up"), onBack: { model?.router.pop() }); Spacer() }.dsScreen()
     }
 }
 
@@ -134,28 +134,28 @@ private struct AddFuelContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                EditorTopBar(title: "Add Fuel", trailingEnabled: viewModel.canSave,
+                EditorTopBar(title: String(localized: "Add Fuel"), trailingEnabled: viewModel.canSave,
                              onLeading: viewModel.cancel, onTrailing: save)
                 VStack(spacing: 16) {
-                    HeroAmountField(caption: "Total cost", currencySymbol: viewModel.format.currencySymbol(viewModel.currency),
+                    HeroAmountField(caption: String(localized: "Total cost"), currencySymbol: viewModel.format.currencySymbol(viewModel.currency),
                                     amount: $viewModel.totalCostText, meta: viewModel.meta)
                         .accessibilityIdentifier("fuelCostField")
                     FormSurface {
-                        FormTextRow(label: "Litres", text: $viewModel.volumeText, placeholder: "0", unit: "L", keyboard: .decimalPad, isFirst: true)
+                        FormTextRow(label: String(localized: "Litres"), text: $viewModel.volumeText, placeholder: "0", unit: String(localized: "L", comment: "Litres, unit symbol"), keyboard: .decimalPad, isFirst: true)
                             .accessibilityIdentifier("fuelVolumeField")
-                        FormDateRow(label: "Date", date: $viewModel.date, range: Date.distantPast...viewModel.now)
-                        FormTextRow(label: "Odometer", text: $viewModel.odometerText, placeholder: viewModel.odometerHint ?? "0", unit: viewModel.format.distanceUnit, keyboard: .numberPad)
+                        FormDateRow(label: String(localized: "Date"), date: $viewModel.date, range: Date.distantPast...viewModel.now)
+                        FormTextRow(label: String(localized: "Odometer"), text: $viewModel.odometerText, placeholder: viewModel.odometerHint ?? "0", unit: viewModel.format.distanceUnit, keyboard: .numberPad)
                             .accessibilityIdentifier("fuelOdometerField")
-                        FormTextRow(label: "Station", text: $viewModel.station, placeholder: "Optional")
+                        FormTextRow(label: String(localized: "Station"), text: $viewModel.station, placeholder: String(localized: "Optional"))
                         // The full-tank flag is load-bearing: consumption is only measurable
                         // between two full fills.
-                        FormToggleRow(label: "Full tank", isOn: $viewModel.isFullTank)
+                        FormToggleRow(label: String(localized: "Full tank"), isOn: $viewModel.isFullTank)
                             .accessibilityIdentifier("fuelFullTankToggle")
                     }
                     if let error = viewModel.errorMessage {
                         Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    SaveButton(title: "Save entry", isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
+                    SaveButton(title: String(localized: "Save entry"), isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
                         .accessibilityIdentifier("fuelSave")
                 }
                 .padding(.horizontal, DS.Layout.gutter)

@@ -142,17 +142,17 @@ struct ReminderPresenter {
         var parts: [String] = []
         switch evaluation.status {
         case .overdue(let days):
-            parts.append(days.map { "Overdue by \($0) day\($0 == 1 ? "" : "s")" } ?? "Overdue")
+            parts.append(days.map { String(localized: "Overdue by \($0) days") } ?? String(localized: "Overdue"))
         case .due:
-            parts.append("Due today")
+            parts.append(String(localized: "Due today"))
         case .indeterminate:
-            parts.append("Log the odometer to track this")
+            parts.append(String(localized: "Log the odometer to track this"))
         case .upcoming:
             if let remaining = evaluation.progress?.remainingDistance {
-                parts.append("Due within \(format.distance(remaining))")
+                parts.append(String(localized: "Due within \(format.distance(remaining))"))
             } else if let due = dueDate(reminder) {
                 let days = format.calendar.dateComponents([.day], from: now, to: due).day ?? 0
-                parts.append("Due in \(days) day\(days == 1 ? "" : "s")")
+                parts.append(String(localized: "Due in \(days) days"))
             }
         }
         if let due = dueDate(reminder) { parts.append(format.shortDate(due, relativeTo: now)) }
@@ -178,22 +178,22 @@ struct ReminderPresenter {
         let due = dueDate(reminder).map { format.shortDate($0, relativeTo: clock.now) }
         switch reminder.recurrence {
         case .none:
-            if case .mileage(let m) = reminder.trigger { return "At \(format.odometer(m.dueOdometer))" }
-            return ["Once", due].compactMap { $0 }.joined(separator: " · ")
+            if case .mileage(let m) = reminder.trigger { return String(localized: "At \(format.odometer(m.dueOdometer))") }
+            return [String(localized: "Once"), due].compactMap { $0 }.joined(separator: " · ")
         case .everyMonths(let n):
-            let base = n == 12 ? "Yearly" : n == 1 ? "Monthly" : "Every \(n) months"
+            let base = n == 12 ? String(localized: "recurrence.yearly", defaultValue: "Yearly") : n == 1 ? String(localized: "recurrence.monthly", defaultValue: "Monthly") : String(localized: "Every \(n) months")
             return [base, due].compactMap { $0 }.joined(separator: " · ")
         case .everyYears(let n):
-            return n == 1 ? "Yearly" : "Every \(n) years"
+            return n == 1 ? String(localized: "recurrence.yearly", defaultValue: "Yearly") : String(localized: "Every \(n) years")
         case .everyDistance(let d):
-            return "Every \(format.distance(d))"
+            return String(localized: "Every \(format.distance(d))")
         case .both(let months, let distance):
-            return "Every \(months) months or \(format.distance(distance))"
+            return String(localized: "Every \(months) months or \(format.distance(distance))")
         case .seasonal(let months):
             let names = months.sorted().compactMap { month in
                 format.calendar.date(from: DateComponents(year: 2000, month: month, day: 1)).map { format.month($0) }
             }
-            return "Seasonal · " + names.joined(separator: " / ")
+            return String(localized: "Seasonal · \(names.joined(separator: " / "))")
         }
     }
 }
@@ -221,11 +221,11 @@ final class AddReminderViewModel {
     private(set) var vehicleName = ""
     private(set) var currentOdometer: Double?
 
-    let leadDayOptions: [(Int, String)] = [(0, "On the day"), (1, "1 day before"), (7, "7 days before"), (14, "14 days before"), (30, "30 days before")]
+    let leadDayOptions: [(Int, String)] = [(0, String(localized: "On the day")), (1, String(localized: "1 day before")), (7, String(localized: "7 days before")), (14, String(localized: "14 days before")), (30, String(localized: "30 days before"))]
     var leadDistanceOptions: [(Double, String)] {
-        [500.0, 1_000, 2_000].map { ($0, format.distance(Distance(kilometers: $0)) + " before") }
+        [500.0, 1_000, 2_000].map { ($0, String(localized: "\(format.distance(Distance(kilometers: $0))) before")) }
     }
-    let repeatOptions: [(Repeat, String)] = [(.never, "Never"), (.months6, "Every 6 months"), (.yearly, "Every 12 months"), (.years2, "Every 2 years")]
+    let repeatOptions: [(Repeat, String)] = [(.never, String(localized: "Never")), (.months6, String(localized: "Every 6 months")), (.yearly, String(localized: "Every 12 months")), (.years2, String(localized: "Every 2 years"))]
 
     private let vehicleID: VehicleID
     private let createReminder: CreateReminder
@@ -272,13 +272,13 @@ final class AddReminderViewModel {
         switch triggerKind {
         case .date:
             let fire = format.calendar.date(byAdding: .day, value: -leadDays, to: dueDate) ?? dueDate
-            if fire <= now { return "That's already inside the notice window — it shows as due soon right away." }
-            if leadDays == 0 { return "You'll get a notification on \(format.longDate(fire))." }
-            return "You'll get a notification on \(format.longDate(fire)), \(leadDays) day\(leadDays == 1 ? "" : "s") before it's due."
+            if fire <= now { return String(localized: "That's already inside the notice window — it shows as due soon right away.") }
+            if leadDays == 0 { return String(localized: "You'll get a notification on \(format.longDate(fire)).") }
+            return String(localized: "You'll get a notification on \(format.longDate(fire)), \(String(localized: "\(leadDays) days before it's due")).")
         case .mileage:
-            guard let interval, let baseline else { return "Log the odometer once so the app knows where to count from." }
+            guard let interval, let baseline else { return String(localized: "Log the odometer once so the app knows where to count from.") }
             let due = Odometer(kilometers: baseline + interval)
-            return "Due at \(format.odometer(due)). iOS can't trigger on distance, so the app flags it as you log mileage."
+            return String(localized: "Due at \(format.odometer(due)). iOS can't trigger on distance, so the app flags it as you log mileage.")
         }
     }
 

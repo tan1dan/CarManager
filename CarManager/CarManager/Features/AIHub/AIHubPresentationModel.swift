@@ -85,23 +85,23 @@ struct AIHubFormatter: Sendable {
 
     static func tools(isLocked: (PremiumFeature) -> Bool) -> [AIHubPresentationModel.Tool] {
         [
-            .init(kind: .dashboard, symbolName: "camera", title: "Scan Dashboard",
-                  subtitle: "Warning lights", isLocked: isLocked(.dashboardScan)),
-            .init(kind: .receipt, symbolName: "receipt", title: "Scan Receipt",
-                  subtitle: "Auto-fill expense", isLocked: isLocked(.receiptScan)),
-            .init(kind: .damage, symbolName: "exclamationmark.shield", title: "Analyze Damage",
-                  subtitle: "Photo diagnosis", isLocked: isLocked(.damageAnalysis)),
-            .init(kind: .chat, symbolName: "message", title: "Ask AI",
-                  subtitle: "Anything car", isLocked: isLocked(.aiChat))
+            .init(kind: .dashboard, symbolName: "camera", title: String(localized: "Scan Dashboard"),
+                  subtitle: String(localized: "Warning lights"), isLocked: isLocked(.dashboardScan)),
+            .init(kind: .receipt, symbolName: "receipt", title: String(localized: "Scan Receipt"),
+                  subtitle: String(localized: "Auto-fill expense"), isLocked: isLocked(.receiptScan)),
+            .init(kind: .damage, symbolName: "exclamationmark.shield", title: String(localized: "Analyze Damage"),
+                  subtitle: String(localized: "Photo diagnosis"), isLocked: isLocked(.damageAnalysis)),
+            .init(kind: .chat, symbolName: "message", title: String(localized: "Ask AI"),
+                  subtitle: String(localized: "Anything car"), isLocked: isLocked(.aiChat))
         ]
     }
 
     /// "Today", "Yesterday", "Nov 3", or "Nov 3, 2024" once the year differs.
     func relativeDay(_ date: Date) -> String {
-        if calendar.isDate(date, inSameDayAs: now) { return "Today" }
+        if calendar.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
         if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
            calendar.isDate(date, inSameDayAs: yesterday) {
-            return "Yesterday"
+            return String(localized: "Yesterday")
         }
         var style = Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
             .month(.abbreviated).day()

@@ -10,7 +10,7 @@ struct AlertsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Alerts", onBack: { model?.router.pop() }) {
+                PushedHeader(title: String(localized: "Alerts"), onBack: { model?.router.pop() }) {
                     if case .loaded = viewModel?.state {
                         Button("Clear") { confirmingClear = true }
                             .font(.system(size: 13, weight: .semibold))
@@ -24,8 +24,8 @@ struct AlertsView: View {
         }
         .scrollIndicators(.hidden)
         .dsScreen()
-        .confirmDialog(isPresented: $confirmingClear, symbol: "bell.slash", title: "Clear all alerts?",
-                       message: "Reminders themselves stay. Only this list is emptied.", confirmTitle: "Clear") {
+        .confirmDialog(isPresented: $confirmingClear, symbol: "bell.slash", title: String(localized: "Clear all alerts?"),
+                       message: String(localized: "Reminders themselves stay. Only this list is emptied."), confirmTitle: String(localized: "Clear")) {
             Task { await viewModel?.clear() }
         }
         .task {
@@ -60,11 +60,11 @@ struct AlertsView: View {
                 }
             }
         case .empty:
-            EmptyStateView(symbol: "checkmark", title: "You're all caught up",
-                           message: "Reminders and AI findings show up here when something needs your attention.")
+            EmptyStateView(symbol: "checkmark", title: String(localized: "You're all caught up"),
+                           message: String(localized: "Reminders and AI findings show up here when something needs your attention."))
                 .padding(.top, 60)
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load alerts",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load alerts"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -123,6 +123,6 @@ struct NotificationDetailsView: View {
     let notificationID: NotificationID
     @Environment(\.appModel) private var model
     var body: some View {
-        VStack { PushedHeader(title: "Alert", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        VStack { PushedHeader(title: String(localized: "Alert"), onBack: { model?.router.pop() }); Spacer() }.dsScreen()
     }
 }

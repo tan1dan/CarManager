@@ -42,7 +42,7 @@ struct SettingsPresentationModel: Equatable, Sendable {
         case openURL(URL)
     }
 
-    static let placeholder = SettingsPresentationModel(title: "Settings", sections: [])
+    static let placeholder = SettingsPresentationModel(title: String(localized: "Settings"), sections: [])
 }
 
 /// Pure mapping onto display values.
@@ -59,9 +59,9 @@ struct SettingsFormatter: Sendable {
     static func describe(_ state: SyncState) -> String {
         switch state {
         case .idle(let lastSyncedAt):
-            guard let lastSyncedAt else { return "On" }
-            return "On · \(lastSyncedAt.formatted(date: .abbreviated, time: .shortened))"
-        case .syncing: return "Syncing…"
+            guard let lastSyncedAt else { return String(localized: "On") }
+            return String(localized: "On · \(lastSyncedAt.formatted(date: .abbreviated, time: .shortened))")
+        case .syncing: return String(localized: "Syncing…")
         case .failed(let message, _): return message
         case .unavailable(let reason): return reason
         }
@@ -74,12 +74,12 @@ struct SettingsFormatter: Sendable {
         syncState: SyncState
     ) -> SettingsPresentationModel {
         SettingsPresentationModel(
-            title: "Settings",
+            title: String(localized: "Settings"),
             sections: [
-                .init(title: "ACCOUNT", rows: accountRows(authState: authState)),
-                .init(title: "PREFERENCES", rows: preferenceRows(unitSystem: unitSystem)),
-                .init(title: "DATA", rows: dataRows(syncDescription: Self.describe(syncState))),
-                .init(title: "ABOUT", rows: aboutRows())
+                .init(title: String(localized: "ACCOUNT"), rows: accountRows(authState: authState)),
+                .init(title: String(localized: "PREFERENCES"), rows: preferenceRows(unitSystem: unitSystem)),
+                .init(title: String(localized: "DATA"), rows: dataRows(syncDescription: Self.describe(syncState))),
+                .init(title: String(localized: "ABOUT"), rows: aboutRows())
             ]
         )
     }
@@ -89,23 +89,23 @@ struct SettingsFormatter: Sendable {
         return [
             // The only way in is Sign in with Apple, so there is no password to manage.
             .init(
-                id: "email", symbolName: "apple.logo", title: "Apple ID",
+                id: "email", symbolName: "apple.logo", title: String(localized: "Apple ID"),
                 // Apple may withhold the address ("Hide My Email" or a later sign-in); being
                 // signed in is what matters here.
                 trailing: .value(authState.profile?.hasPrivateRelayEmail == true
-                                 ? "Private email"
-                                 : email.map(truncatedEmail) ?? (authState.isAuthenticated ? "Signed in" : "Not signed in")),
+                                 ? String(localized: "Private email")
+                                 : email.map(truncatedEmail) ?? (authState.isAuthenticated ? String(localized: "Signed in") : String(localized: "Not signed in"))),
                 action: .push(.settingsSection(.account))
             ),
             .init(
-                id: "subscription", symbolName: "crown", title: "Subscription",
+                id: "subscription", symbolName: "crown", title: String(localized: "Subscription"),
                 trailing: .chevron, action: .push(.subscriptionSettings)
             ),
             // The design shows a stored card ("Visa ·· 4832"). The app deliberately holds no
             // card data, so this row links out to the App Store's billing settings instead of
             // displaying a number it has no right to know.
             .init(
-                id: "payment", symbolName: "creditcard", title: "Payment method",
+                id: "payment", symbolName: "creditcard", title: String(localized: "Payment method"),
                 trailing: .chevron, action: .openURL(Self.appStoreBillingURL)
             )
         ]
@@ -114,21 +114,21 @@ struct SettingsFormatter: Sendable {
     private func preferenceRows(unitSystem: UnitSystem) -> [SettingsPresentationModel.Row] {
         [
             .init(
-                id: "units", symbolName: "globe", title: "Units",
-                trailing: .value(unitSystem == .metric ? "Metric" : "Imperial"),
+                id: "units", symbolName: "globe", title: String(localized: "Units"),
+                trailing: .value(unitSystem == .metric ? String(localized: "Metric") : String(localized: "Imperial")),
                 action: .push(.settingsSection(.units))
             ),
             // Region and time zone belong to iOS, not to this app: shown, never edited here.
             .init(
-                id: "region", symbolName: "mappin.and.ellipse", title: "Region",
+                id: "region", symbolName: "mappin.and.ellipse", title: String(localized: "Region"),
                 trailing: .value(regionName), action: .inert
             ),
             .init(
-                id: "timezone", symbolName: "clock", title: "Time zone",
+                id: "timezone", symbolName: "clock", title: String(localized: "Time zone"),
                 trailing: .value(timeZoneName), action: .inert
             ),
             .init(
-                id: "notifications", symbolName: "bell", title: "Notifications",
+                id: "notifications", symbolName: "bell", title: String(localized: "Notifications"),
                 trailing: .toggle(.notifications), action: .inert
             )
         ]
@@ -140,7 +140,7 @@ struct SettingsFormatter: Sendable {
             // and whether it works depends on the device's iCloud account. So the row
             // reports the truth instead of pretending to control it.
             .init(
-                id: "icloud", symbolName: "icloud", title: "iCloud sync",
+                id: "icloud", symbolName: "icloud", title: String(localized: "iCloud sync"),
                 trailing: .value(syncDescription), action: .inert
             )
         ]
@@ -149,19 +149,19 @@ struct SettingsFormatter: Sendable {
     private func aboutRows() -> [SettingsPresentationModel.Row] {
         [
             .init(
-                id: "version", symbolName: "info.circle", title: "Version",
+                id: "version", symbolName: "info.circle", title: String(localized: "Version"),
                 trailing: .value(appVersion), action: .inert
             ),
             .init(
-                id: "support", symbolName: "lifepreserver", title: "Support",
+                id: "support", symbolName: "lifepreserver", title: String(localized: "Support"),
                 trailing: .chevron, action: .push(.supportSettings)
             ),
             .init(
-                id: "privacy", symbolName: "hand.raised", title: "Privacy Policy",
+                id: "privacy", symbolName: "hand.raised", title: String(localized: "Privacy Policy"),
                 trailing: .chevron, action: .present(.legal(.privacyPolicy))
             ),
             .init(
-                id: "terms", symbolName: "doc.text", title: "Terms of Use",
+                id: "terms", symbolName: "doc.text", title: String(localized: "Terms of Use"),
                 trailing: .chevron, action: .present(.legal(.termsOfUse))
             )
         ]

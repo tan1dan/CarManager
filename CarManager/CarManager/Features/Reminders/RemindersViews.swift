@@ -9,8 +9,8 @@ struct RemindersView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Reminders", onBack: { model?.router.pop() }) {
-                    CircleIconButton(symbol: "plus", filled: true, accessibilityLabel: "Add reminder") { add() }
+                PushedHeader(title: String(localized: "Reminders"), onBack: { model?.router.pop() }) {
+                    CircleIconButton(symbol: "plus", filled: true, accessibilityLabel: String(localized: "Add reminder")) { add() }
                         .accessibilityIdentifier("reminderAdd")
                 }
                 content.padding(.horizontal, DS.Layout.gutter)
@@ -29,7 +29,7 @@ struct RemindersView: View {
         case .loaded(let p):
             if let next = p.nextUp { nextUpCard(next) }
             VStack(spacing: 8) {
-                Eyebrow(text: "All reminders")
+                Eyebrow(text: String(localized: "All reminders"))
                 RowGroup(items: p.rows) { row in
                     Button { model?.router.push(.reminderDetail(row.id)) } label: { reminderRow(row) }
                         .buttonStyle(.plain)
@@ -41,11 +41,11 @@ struct RemindersView: View {
                 }
             }
         case .empty:
-            EmptyStateView(symbol: "bell", title: "Nothing scheduled",
-                           message: "Add a reminder by date or by mileage and we'll warn you in time.",
-                           actionTitle: "Add reminder", action: add)
+            EmptyStateView(symbol: "bell", title: String(localized: "Nothing scheduled"),
+                           message: String(localized: "Add a reminder by date or by mileage and we'll warn you in time."),
+                           actionTitle: String(localized: "Add reminder"), action: add)
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load reminders",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load reminders"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -54,7 +54,7 @@ struct RemindersView: View {
 
     private func nextUpCard(_ next: RemindersPresentation.NextUp) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "Next up").padding(.bottom, 6)
+            Eyebrow(text: String(localized: "Next up")).padding(.bottom, 6)
             Text(next.title)
                 .font(DS.Text.headline).tracking(DS.Text.headlineTracking)
                 .foregroundStyle(.white)
@@ -128,15 +128,15 @@ struct ReminderDetailsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Reminder", onBack: { model?.router.pop() })
+                PushedHeader(title: String(localized: "Reminder"), onBack: { model?.router.pop() })
                 content.padding(.horizontal, DS.Layout.gutter)
             }
             .padding(.bottom, 32)
         }
         .scrollIndicators(.hidden)
         .dsScreen()
-        .confirmDialog(isPresented: $confirmingDelete, symbol: "trash", title: "Delete this reminder?",
-                       message: "Its notifications are cancelled too.", confirmTitle: "Delete") {
+        .confirmDialog(isPresented: $confirmingDelete, symbol: "trash", title: String(localized: "Delete this reminder?"),
+                       message: String(localized: "Its notifications are cancelled too."), confirmTitle: String(localized: "Delete")) {
             Task { if await viewModel?.remove(id: reminderID) == true { model?.router.pop() } }
         }
         .task { await load() }
@@ -161,7 +161,7 @@ struct ReminderDetailsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             if p.isActive {
-                SaveButton(title: "Mark as done", isBusy: viewModel?.isWorking ?? false) {
+                SaveButton(title: String(localized: "Mark as done"), isBusy: viewModel?.isWorking ?? false) {
                     Task { await viewModel?.markDone(id: reminderID) }
                 }
                 .accessibilityIdentifier("reminderMarkDone")
@@ -178,10 +178,10 @@ struct ReminderDetailsView: View {
             }
             .buttonStyle(.plain)
         case .empty:
-            EmptyStateView(symbol: "bell.slash", title: "Reminder not found",
-                           message: "It may have been deleted on another device.")
+            EmptyStateView(symbol: "bell.slash", title: String(localized: "Reminder not found"),
+                           message: String(localized: "It may have been deleted on another device."))
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load the reminder",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load the reminder"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -269,38 +269,38 @@ private struct AddReminderContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                EditorTopBar(title: "Add Reminder", trailingEnabled: viewModel.canSave,
+                EditorTopBar(title: String(localized: "Add Reminder"), trailingEnabled: viewModel.canSave,
                              onLeading: viewModel.cancel, onTrailing: save)
                 VStack(spacing: 16) {
-                    SegmentedPill(options: [(.date, "By date"), (.mileage, "By mileage")], selection: $viewModel.triggerKind)
+                    SegmentedPill(options: [(.date, String(localized: "By date")), (.mileage, String(localized: "By mileage"))], selection: $viewModel.triggerKind)
                         .accessibilityIdentifier("reminderTriggerPicker")
                     FormSurface {
-                        FormTextRow(label: "Title", text: $viewModel.title, placeholder: viewModel.titlePlaceholder, isFirst: true)
+                        FormTextRow(label: String(localized: "Title"), text: $viewModel.title, placeholder: viewModel.titlePlaceholder, isFirst: true)
                             .accessibilityIdentifier("reminderTitleField")
-                        FormMenuRow(label: "Type", options: viewModel.kindOptions, selection: $viewModel.kind)
+                        FormMenuRow(label: String(localized: "Type"), options: viewModel.kindOptions, selection: $viewModel.kind)
                         switch viewModel.triggerKind {
                         case .date:
-                            FormDateRow(label: "Due date", date: $viewModel.dueDate, range: viewModel.now...Date.distantFuture)
-                            FormMenuRow(label: "Repeat", options: viewModel.repeatOptions, selection: $viewModel.repeatRule)
-                            FormMenuRow(label: "Notify", options: viewModel.leadDayOptions, selection: $viewModel.leadDays)
+                            FormDateRow(label: String(localized: "Due date"), date: $viewModel.dueDate, range: viewModel.now...Date.distantFuture)
+                            FormMenuRow(label: String(localized: "Repeat"), options: viewModel.repeatOptions, selection: $viewModel.repeatRule)
+                            FormMenuRow(label: String(localized: "Notify"), options: viewModel.leadDayOptions, selection: $viewModel.leadDays)
                         case .mileage:
-                            FormTextRow(label: "Every", text: $viewModel.intervalText, placeholder: "15000",
+                            FormTextRow(label: String(localized: "Every"), text: $viewModel.intervalText, placeholder: "15000",
                                         unit: viewModel.format.distanceUnit, keyboard: .numberPad)
-                            FormTextRow(label: "Last done at", text: $viewModel.lastDoneText,
+                            FormTextRow(label: String(localized: "Last done at"), text: $viewModel.lastDoneText,
                                         placeholder: viewModel.currentOdometer.map { viewModel.format.integer($0) } ?? "0",
                                         unit: viewModel.format.distanceUnit, keyboard: .numberPad)
-                            FormToggleRow(label: "Repeat", isOn: $viewModel.repeatsByDistance)
-                            FormMenuRow(label: "Notify", options: viewModel.leadDistanceOptions, selection: $viewModel.leadDistance)
+                            FormToggleRow(label: String(localized: "Repeat"), isOn: $viewModel.repeatsByDistance)
+                            FormMenuRow(label: String(localized: "Notify"), options: viewModel.leadDistanceOptions, selection: $viewModel.leadDistance)
                         }
                         if !viewModel.vehicleName.isEmpty {
-                            FormValueRow(label: "Vehicle", value: viewModel.vehicleName)
+                            FormValueRow(label: String(localized: "Vehicle"), value: viewModel.vehicleName)
                         }
                     }
                     InfoBanner(symbol: "bell", text: viewModel.explanation, tone: .accent)
                     if let error = viewModel.errorMessage {
                         Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    SaveButton(title: "Save reminder", isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
+                    SaveButton(title: String(localized: "Save reminder"), isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
                         .accessibilityIdentifier("reminderSave")
                 }
                 .padding(.horizontal, DS.Layout.gutter)

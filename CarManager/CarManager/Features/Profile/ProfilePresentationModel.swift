@@ -43,7 +43,7 @@ struct ProfilePresentationModel: Equatable, Sendable {
     }
 
     static let placeholder = ProfilePresentationModel(
-        title: "Profile",
+        title: String(localized: "Profile"),
         identity: Identity(initials: "", name: "", subtitle: "", isPremium: false, badgeTitle: ""),
         stats: [], premium: nil, rows: []
     )
@@ -60,19 +60,19 @@ struct ProfileFormatter: Sendable {
         statistics: UserStatistics
     ) -> ProfilePresentationModel {
         ProfilePresentationModel(
-            title: "Profile",
+            title: String(localized: "Profile"),
             identity: identity(authState: authState, isPremium: isPremium),
             stats: [
                 .init(
                     symbolName: "car",
                     value: "\(statistics.vehicleCount)",
-                    label: statistics.vehicleCount == 1 ? "Vehicle" : "Vehicles"
+                    label: statistics.vehicleCount == 1 ? String(localized: "Vehicle") : String(localized: "Vehicles")
                 ),
-                .init(symbolName: "fuelpump", value: "\(statistics.fuelEntryCount)", label: "Fill-ups"),
+                .init(symbolName: "fuelpump", value: "\(statistics.fuelEntryCount)", label: String(localized: "Fill-ups")),
                 .init(
                     symbolName: "wrench.adjustable",
                     value: "\(statistics.serviceRecordCount)",
-                    label: "Services"
+                    label: String(localized: "Services")
                 )
             ],
             premium: premiumBanner(isPremium: isPremium),
@@ -84,39 +84,39 @@ struct ProfileFormatter: Sendable {
         switch authState {
         case .authenticated(let profile):
             // Never the email as a name: with "Hide My Email" it is a random relay address.
-            let name = profile.needsDisplayName ? "Driver" : (profile.displayName ?? "Driver")
+            let name = profile.needsDisplayName ? String(localized: "Driver") : (profile.displayName ?? String(localized: "Driver"))
             return .init(
                 initials: Self.initials(from: name),
                 name: name,
-                subtitle: profile.hasPrivateRelayEmail ? "Private email via Apple" : (profile.email ?? ""),
+                subtitle: profile.hasPrivateRelayEmail ? String(localized: "Private email via Apple") : (profile.email ?? ""),
                 isPremium: isPremium,
-                badgeTitle: isPremium ? "PREMIUM" : "FREE"
+                badgeTitle: isPremium ? String(localized: "PREMIUM") : String(localized: "FREE")
             )
         case .anonymous, .signedOut, .restoring:
             return .init(
                 initials: "—",
-                name: "Not signed in",
-                subtitle: "Sign in to sync and use AI",
+                name: String(localized: "Not signed in"),
+                subtitle: String(localized: "Sign in to sync and use AI"),
                 isPremium: isPremium,
-                badgeTitle: isPremium ? "PREMIUM" : "FREE"
+                badgeTitle: isPremium ? String(localized: "PREMIUM") : String(localized: "FREE")
             )
         }
     }
 
     private func premiumBanner(isPremium: Bool) -> ProfilePresentationModel.PremiumBanner? {
         isPremium
-            ? .init(eyebrow: "PREMIUM", body: "Unlimited vehicles, AI scans, cloud backup.")
-            : .init(eyebrow: "GO PREMIUM", body: "Unlimited vehicles, AI scans, cloud backup.")
+            ? .init(eyebrow: String(localized: "PREMIUM"), body: String(localized: "Unlimited vehicles, AI scans, cloud backup."))
+            : .init(eyebrow: String(localized: "GO PREMIUM"), body: String(localized: "Unlimited vehicles, AI scans, cloud backup."))
     }
 
     private func rows() -> [ProfilePresentationModel.Row] {
         [
             // NOT in the Figma design — added because the app needs a way into Settings.
-            .init(id: "settings", symbolName: "gearshape", title: "Settings",
+            .init(id: "settings", symbolName: "gearshape", title: String(localized: "Settings"),
                   trailing: .chevron, destination: .settings),
-            .init(id: "language", symbolName: "globe", title: "Language",
+            .init(id: "language", symbolName: "globe", title: String(localized: "Language"),
                   trailing: .value(languageName), destination: .settingsSection(.language)),
-            .init(id: "support", symbolName: "lifepreserver", title: "Support",
+            .init(id: "support", symbolName: "lifepreserver", title: String(localized: "Support"),
                   trailing: .chevron, destination: .supportSettings)
         ]
     }

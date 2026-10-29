@@ -80,23 +80,23 @@ final class VehicleDetailsViewModel {
         let vehicle = detail.vehicle
         let eyebrow = [vehicle.year.map(String.init), vehicle.trim].compactMap { $0 }.joined(separator: " · ")
         var stats: [VehicleDetailPresentation.Stat] = [
-            .init(caption: "MILEAGE",
+            .init(caption: String(localized: "MILEAGE"),
                   value: detail.currentOdometer.map { format.integer(format.unitSystem == .metric ? $0.kilometers : $0.value.miles) } ?? "—",
                   unit: detail.currentOdometer == nil ? nil : format.distanceUnit),
-            .init(caption: format.unitSystem == .metric ? "AVG L/100" : "AVG MPG",
+            .init(caption: format.unitSystem == .metric ? String(localized: "AVG L/100") : String(localized: "AVG MPG"),
                   value: analytics.averageConsumption.map(format.consumption) ?? "—")
         ]
         let registered = [vehicle.registrationCountry, vehicle.licensePlate].compactMap { $0 }.joined(separator: " · ")
-        stats.append(.init(caption: "REGISTERED", value: registered.isEmpty ? "—" : registered))
-        stats.append(.init(caption: "FUEL", value: vehicle.fuelType.displayName))
+        stats.append(.init(caption: String(localized: "REGISTERED"), value: registered.isEmpty ? "—" : registered))
+        stats.append(.init(caption: String(localized: "FUEL"), value: vehicle.fuelType.displayName))
 
         let tiles: [VehicleDetailPresentation.Tile] = [
-            .init(symbol: "wrench.adjustable", title: "Service", subtitle: count(detail.serviceRecordCount, "record"), route: .serviceHistory(vehicleID)),
-            .init(symbol: "fuelpump", title: "Fuel", subtitle: count(detail.fuelEntryCount, "fill-up"), route: .fuelHistory(vehicleID)),
-            .init(symbol: "creditcard", title: "Expenses", subtitle: analytics.hasAnyCost ? format.money(analytics.yearSpend, analytics.currency) + " this year" : "Nothing yet", route: .expenses(vehicleID)),
-            .init(symbol: "bell", title: "Reminders", subtitle: "Due dates", route: .reminders(vehicleID)),
-            .init(symbol: "doc.text", title: "Documents", subtitle: count(detail.documentCount, "document"), route: .documents(vehicleID)),
-            .init(symbol: "chart.bar", title: "Statistics", subtitle: "This year", route: .analytics(vehicleID, .year))
+            .init(symbol: "wrench.adjustable", title: String(localized: "Service"), subtitle: count(detail.serviceRecordCount) { String(localized: "\($0) records") }, route: .serviceHistory(vehicleID)),
+            .init(symbol: "fuelpump", title: String(localized: "Fuel"), subtitle: count(detail.fuelEntryCount) { String(localized: "\($0) fill-ups") }, route: .fuelHistory(vehicleID)),
+            .init(symbol: "creditcard", title: String(localized: "Expenses"), subtitle: analytics.hasAnyCost ? String(localized: "\(format.money(analytics.yearSpend, analytics.currency)) this year") : String(localized: "Nothing yet"), route: .expenses(vehicleID)),
+            .init(symbol: "bell", title: String(localized: "Reminders"), subtitle: String(localized: "Due dates"), route: .reminders(vehicleID)),
+            .init(symbol: "doc.text", title: String(localized: "Documents"), subtitle: count(detail.documentCount) { String(localized: "\($0) documents") }, route: .documents(vehicleID)),
+            .init(symbol: "chart.bar", title: String(localized: "Statistics"), subtitle: String(localized: "This year"), route: .analytics(vehicleID, .year))
         ]
 
         let last6 = Array(analytics.monthlySpend.suffix(6))
@@ -113,7 +113,7 @@ final class VehicleDetailsViewModel {
         )
     }
 
-    private func count(_ n: Int, _ noun: String) -> String {
-        n == 0 ? "None yet" : "\(n) \(noun)\(n == 1 ? "" : "s")"
+    private func count(_ n: Int, _ text: (Int) -> String) -> String {
+        n == 0 ? String(localized: "None yet") : text(n)
     }
 }

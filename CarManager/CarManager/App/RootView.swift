@@ -3,7 +3,8 @@ import SwiftUI
 /// The root application flow. It reacts to state — nothing here is hardcoded to one screen.
 ///
 ///   launch → restore session → signed in with Apple? → main app
-///                                              no    → welcome (Sign in with Apple)
+///                                              no    → first launch? → intro tour
+///                                                      → welcome (Sign in with Apple)
 ///
 /// There is no way past the welcome screen without an Apple account (ADR-016). Signing out,
 /// deleting the account or revoking the app in Settings all land back on it.
@@ -52,7 +53,12 @@ struct RootView: View {
         case .authenticated:
             RootTabView()
         case .anonymous, .signedOut:
-            OnboardingView()
+            // A first launch gets the tour before the sign-in screen; later sign-outs do not.
+            if model.onboarding.isCompleted {
+                OnboardingView().transition(.opacity)
+            } else {
+                IntroView().transition(.opacity)
+            }
         }
     }
 }

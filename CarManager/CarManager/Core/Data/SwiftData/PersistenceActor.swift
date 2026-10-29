@@ -485,6 +485,34 @@ actor PersistenceActor {
         return refs
     }
 
+    // MARK: - Files
+
+    func storeFile(_ ref: FileRef, kind: FileKind, data: Data, at date: Date) throws {
+        let raw = ref.id
+        try upsert(raw, #Predicate<SDStoredFile> { $0.id == raw }, make: { SDStoredFile(id: raw) }) {
+            $0.relativePath = ref.relativePath
+            $0.kindRaw = kind.rawValue
+            $0.data = data
+            $0.createdAt = date
+        }
+    }
+
+    /// `nil` when there is no record, or CloudKit has not brought the bytes down yet.
+    func fileData(id: UUID) throws -> Data? {
+        try fetchOne(#Predicate<SDStoredFile> { $0.id == id })?.data
+    }
+
+    func storedFileIDs() throws -> Set<UUID> {
+        var descriptor = FetchDescriptor<SDStoredFile>()
+        descriptor.propertiesToFetch = [\.id]
+        return Set(try modelContext.fetch(descriptor).map(\.id))
+    }
+
+    func deleteFile(id: UUID) throws {
+        try modelContext.delete(model: SDStoredFile.self, where: #Predicate { $0.id == id })
+        try save()
+    }
+
     // MARK: - Insights
 
     func insights(vehicleID: VehicleID) throws -> [AIInsight] {

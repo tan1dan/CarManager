@@ -5,15 +5,15 @@ extension FuelType {
     /// shows a fuel type uses this instead.
     var displayName: String {
         switch self {
-        case .petrol: "Petrol"
-        case .diesel: "Diesel"
+        case .petrol: String(localized: "Petrol")
+        case .diesel: String(localized: "Diesel")
         case .lpg: "LPG"
         case .cng: "CNG"
-        case .hybridPetrol: "Hybrid (petrol)"
-        case .hybridDiesel: "Hybrid (diesel)"
-        case .electric: "Electric"
-        case .pluginHybrid: "Plug-in hybrid"
-        case .other: "Other"
+        case .hybridPetrol: String(localized: "Hybrid (petrol)")
+        case .hybridDiesel: String(localized: "Hybrid (diesel)")
+        case .electric: String(localized: "Electric")
+        case .pluginHybrid: String(localized: "Plug-in hybrid")
+        case .other: String(localized: "Other")
         }
     }
 }

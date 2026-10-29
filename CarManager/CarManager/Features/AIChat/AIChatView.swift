@@ -102,6 +102,8 @@ private struct AIChatContentView: View {
                     .lineLimit(1).minimumScaleFactor(0.8)
                     .contentTransition(.opacity)
             }
+            // Title and status first: a long car name truncates instead of hiding them.
+            .layoutPriority(2)
             Spacer(minLength: 8)
             vehiclePicker
         }
@@ -124,10 +126,9 @@ private struct AIChatContentView: View {
         }
         .foregroundStyle(.white)
         .padding(.horizontal, 12)
-        .frame(height: 32)
-        .fixedSize()
+        .frame(minWidth: 96, maxHeight: 32)
+        .fixedSize(horizontal: false, vertical: true)
         .dsGlass(radius: 16)
-        // The car name matters more than the status line next to it.
         .layoutPriority(1)
 
         if viewModel.canChangeVehicle {
@@ -157,7 +158,7 @@ private struct AIChatContentView: View {
                  : "The assistant knows the model, year, fuel and mileage — never the VIN or plate — and remembers this conversation.")
                 .font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
             InfoBanner(symbol: "exclamationmark.triangle",
-                       text: "AI suggestions are not a diagnosis. If something affects brakes, steering or a warning light is flashing, stop safely and have the car inspected.",
+                       text: String(localized: "AI suggestions are not a diagnosis. If something affects brakes, steering or a warning light is flashing, stop safely and have the car inspected."),
                        tone: .warning)
             ForEach(viewModel.suggestions, id: \.self) { suggestion in
                 Button { viewModel.send(suggestion) } label: {
@@ -339,7 +340,8 @@ private struct MessageBubble: View {
             if !isUser { Spacer(minLength: 48) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel((isUser ? "You: " : "Assistant: ") + (isTyping ? "typing" : text))
+        .accessibilityLabel(isTyping ? String(localized: "Assistant is typing")
+                            : isUser ? String(localized: "You: \(text)") : String(localized: "Assistant: \(text)"))
     }
 }
 
@@ -365,8 +367,8 @@ struct ConversationHistoryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Conversations", onBack: { model?.router.pop() }) {
-                    CircleIconButton(symbol: "square.and.pencil", accessibilityLabel: "New conversation") {
+                PushedHeader(title: String(localized: "Conversations"), onBack: { model?.router.pop() }) {
+                    CircleIconButton(symbol: "square.and.pencil", accessibilityLabel: String(localized: "New conversation")) {
                         model?.router.push(.aiChat(nil))
                     }
                 }
@@ -429,11 +431,11 @@ private struct ConversationsContentView: View {
                     .font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             case .empty:
-                EmptyStateView(symbol: "bubble.left.and.bubble.right", title: "No conversations yet",
-                               message: "Ask about a warning light, a strange noise or your running costs.",
-                               actionTitle: "Ask AI") { model?.router.push(.aiChat(nil)) }
+                EmptyStateView(symbol: "bubble.left.and.bubble.right", title: String(localized: "No conversations yet"),
+                               message: String(localized: "Ask about a warning light, a strange noise or your running costs."),
+                               actionTitle: String(localized: "Ask AI")) { model?.router.push(.aiChat(nil)) }
             case .failed(let error):
-                EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load conversations",
+                EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load conversations"),
                                message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
             default:
                 ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)

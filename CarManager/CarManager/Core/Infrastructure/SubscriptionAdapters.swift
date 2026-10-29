@@ -17,12 +17,12 @@ public actor StubSubscriptionProvider: SubscriptionProviding {
     public func products() async throws -> [SubscriptionProduct] {
         [
             SubscriptionProduct(
-                id: .monthly, displayName: "Premium Monthly", displayPrice: "€4.99",
-                isEligibleForIntroOffer: true, introOfferDescription: "7-day free trial"
+                id: .monthly, displayName: String(localized: "Premium Monthly"), displayPrice: "€4.99",
+                isEligibleForIntroOffer: true, introOfferDescription: String(localized: "7-day free trial")
             ),
             SubscriptionProduct(
-                id: .yearly, displayName: "Premium Yearly", displayPrice: "€39.00",
-                isEligibleForIntroOffer: true, introOfferDescription: "7-day free trial"
+                id: .yearly, displayName: String(localized: "Premium Yearly"), displayPrice: "€39.00",
+                isEligibleForIntroOffer: true, introOfferDescription: String(localized: "7-day free trial")
             )
         ]
     }

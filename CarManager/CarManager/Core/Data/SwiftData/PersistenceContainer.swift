@@ -80,10 +80,10 @@ struct CloudKitSyncStatusProvider: SyncStatusProviding {
     func currentStatus() async -> SyncState {
         switch mode {
         case .inMemory:
-            return .unavailable(reason: "Off — in-memory store")
+            return .unavailable(reason: String(localized: "Off — in-memory store"))
         case .localOnly:
             // The full reason is a Core Data error dump; the row needs a phrase.
-            return .unavailable(reason: "Off — this device only")
+            return .unavailable(reason: String(localized: "Off — this device only"))
         case .cloudKit:
             break
         }
@@ -93,13 +93,13 @@ struct CloudKitSyncStatusProvider: SyncStatusProviding {
             case .available:
                 return .idle(lastSyncedAt: nil)
             case .noAccount:
-                return .unavailable(reason: "No iCloud account")
+                return .unavailable(reason: String(localized: "No iCloud account"))
             case .restricted:
-                return .unavailable(reason: "Restricted")
+                return .unavailable(reason: String(localized: "Restricted"))
             case .couldNotDetermine, .temporarilyUnavailable:
-                return .failed(message: "Temporarily unavailable", willRetry: true)
+                return .failed(message: String(localized: "Temporarily unavailable"), willRetry: true)
             @unknown default:
-                return .unavailable(reason: "Unknown state")
+                return .unavailable(reason: String(localized: "Unknown state"))
             }
         } catch {
             return .failed(message: error.localizedDescription, willRetry: true)

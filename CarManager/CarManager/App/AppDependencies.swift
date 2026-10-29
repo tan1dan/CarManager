@@ -83,6 +83,9 @@ public extension AppDependencies {
         // it, and nothing extracted may be written without that confirmation. Dashboard scans
         // and damage analyses are history, and are kept.
         let scratch = InMemoryStore()
+        // Photos and documents go to iCloud with the records; older ones are copied up once.
+        let files = SyncedFileStorage(store: store, clock: clock)
+        Task.detached(priority: .utility) { await files.uploadLocalOnlyFiles() }
         let vehicles = SwiftDataVehicleRepository(store: store)
         let odometer = SwiftDataOdometerRepository(store: store)
         return AppDependencies(
@@ -108,7 +111,7 @@ public extension AppDependencies {
             ),
             textRecognizer: VisionTextRecognizer(),
             imagePreprocessor: JPEGImagePreprocessor(),
-            files: DiskFileStorage(),
+            files: files,
             notifications: UNNotificationScheduler(),
             exporter: StubDocumentExporter(),
             preferences: preferences,

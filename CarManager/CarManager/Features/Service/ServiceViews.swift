@@ -9,8 +9,8 @@ struct ServiceHistoryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Service history", onBack: { model?.router.pop() }) {
-                    CircleIconButton(symbol: "plus", accessibilityLabel: "Add service") { add() }
+                PushedHeader(title: String(localized: "Service history"), onBack: { model?.router.pop() }) {
+                    CircleIconButton(symbol: "plus", accessibilityLabel: String(localized: "Add service")) { add() }
                         .accessibilityIdentifier("serviceAdd")
                 }
                 content.padding(.horizontal, DS.Layout.gutter)
@@ -39,11 +39,11 @@ struct ServiceHistoryView: View {
                 }
             }
         case .empty:
-            EmptyStateView(symbol: "wrench.adjustable", title: "No service records",
-                           message: "Log a visit to the workshop and matching reminders reset themselves.",
-                           actionTitle: "Add service", action: add)
+            EmptyStateView(symbol: "wrench.adjustable", title: String(localized: "No service records"),
+                           message: String(localized: "Log a visit to the workshop and matching reminders reset themselves."),
+                           actionTitle: String(localized: "Add service"), action: add)
         case .failed(let error):
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load service history",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load service history"),
                            message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
         default:
             ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -115,7 +115,7 @@ struct ServiceDetailsView: View {
     let recordID: ServiceRecordID
     @Environment(\.appModel) private var model
     var body: some View {
-        VStack { PushedHeader(title: "Service record", onBack: { model?.router.pop() }); Spacer() }.dsScreen()
+        VStack { PushedHeader(title: String(localized: "Service record"), onBack: { model?.router.pop() }); Spacer() }.dsScreen()
     }
 }
 
@@ -155,24 +155,24 @@ private struct AddServiceContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                EditorTopBar(title: "Add Service", trailingEnabled: viewModel.canSave,
+                EditorTopBar(title: String(localized: "Add Service"), trailingEnabled: viewModel.canSave,
                              onLeading: viewModel.cancel, onTrailing: save)
                 VStack(spacing: 16) {
                     FormSurface {
-                        FormMenuRow(label: "Type", options: ServiceType.allCases.map { ($0, $0.displayName) },
+                        FormMenuRow(label: String(localized: "Type"), options: ServiceType.allCases.map { ($0, $0.displayName) },
                                     selection: $viewModel.type, isFirst: true)
                             .accessibilityIdentifier("serviceTypeMenu")
-                        FormDateRow(label: "Date", date: $viewModel.date, range: Date.distantPast...viewModel.now)
-                        FormTextRow(label: "Odometer", text: $viewModel.odometerText, placeholder: viewModel.odometerHint ?? "Optional",
+                        FormDateRow(label: String(localized: "Date"), date: $viewModel.date, range: Date.distantPast...viewModel.now)
+                        FormTextRow(label: String(localized: "Odometer"), text: $viewModel.odometerText, placeholder: viewModel.odometerHint ?? String(localized: "Optional"),
                                     unit: viewModel.format.distanceUnit, keyboard: .numberPad)
-                        FormTextRow(label: "Cost", text: $viewModel.costText, placeholder: "0",
+                        FormTextRow(label: String(localized: "Cost"), text: $viewModel.costText, placeholder: "0",
                                     unit: viewModel.format.currencySymbol(viewModel.currency), keyboard: .decimalPad)
                             .accessibilityIdentifier("serviceCostField")
-                        FormTextRow(label: "Workshop", text: $viewModel.workshop, placeholder: "Optional")
+                        FormTextRow(label: String(localized: "Workshop"), text: $viewModel.workshop, placeholder: String(localized: "Optional"))
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Eyebrow(text: "Also done")
+                        Eyebrow(text: String(localized: "Also done"))
                         FlowLayout(spacing: 8) {
                             ForEach(viewModel.extraOptions) { extra in
                                 SelectableChip(title: extra.displayName, isSelected: viewModel.extras.contains(extra)) {
@@ -184,13 +184,13 @@ private struct AddServiceContentView: View {
                     }
 
                     InfoBanner(symbol: "bell.badge",
-                               text: "Matching reminders (oil, filters, brakes, tyres…) are marked done and restart from this visit.",
+                               text: String(localized: "Matching reminders (oil, filters, brakes, tyres…) are marked done and restart from this visit."),
                                tone: .neutral)
 
                     if let error = viewModel.errorMessage {
                         Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    SaveButton(title: "Save service", isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
+                    SaveButton(title: String(localized: "Save service"), isBusy: viewModel.isSaving, isEnabled: viewModel.canSave, action: save)
                         .accessibilityIdentifier("serviceSave")
                 }
                 .padding(.horizontal, DS.Layout.gutter)

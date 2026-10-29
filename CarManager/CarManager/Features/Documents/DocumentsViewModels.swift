@@ -57,11 +57,11 @@ final class DocumentsViewModel {
         let subtitle: String, tone: Tone
         switch item.status {
         case .expired(let days):
-            subtitle = days == 0 ? "Expired today" : "Expired \(days) day\(days == 1 ? "" : "s") ago"; tone = .danger
+            subtitle = days == 0 ? String(localized: "Expired today") : String(localized: "Expired \(days) days ago"); tone = .danger
         case .expiringSoon(let days):
-            subtitle = days == 0 ? "Expires today" : "Expires in \(days) day\(days == 1 ? "" : "s")"; tone = .warning
+            subtitle = days == 0 ? String(localized: "Expires today") : String(localized: "Expires in \(days) days"); tone = .warning
         case .valid:
-            subtitle = "Valid to " + (document.expirationDate.map(format.longDate) ?? ""); tone = .accent
+            subtitle = String(localized: "Valid to \(document.expirationDate.map(format.longDate) ?? "")"); tone = .accent
         case .noExpiry:
             subtitle = format.fileSummary(mimeType: document.mimeType, bytes: document.fileSize); tone = .neutral
         }
@@ -147,7 +147,7 @@ final class AddDocumentViewModel {
             // The promise on the upload screen: an expiry date becomes a reminder.
             if let vehicleID, let expiry = document.expirationDate, expiry > now {
                 _ = try? await createReminder(
-                    vehicleID: vehicleID, title: "\(title) expires", kind: type.reminderKind,
+                    vehicleID: vehicleID, title: String(localized: "\(title) expires"), kind: type.reminderKind,
                     trigger: .date(DateTrigger(dueDate: expiry)), recurrence: .none,
                     leadTime: ReminderLeadTime(days: 7, distance: nil)
                 )
@@ -189,7 +189,7 @@ final class DocumentViewerViewModel {
         do {
             let (document, data) = try await loadFile(id: id)
             let ext = UTType(mimeType: document.mimeType)?.preferredFilenameExtension ?? "dat"
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("Preview", isDirectory: true)
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(String(localized: "Preview"), isDirectory: true)
             try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let safeName = document.name.replacingOccurrences(of: "/", with: "-")
             let url = directory.appendingPathComponent("\(safeName).\(ext)")
@@ -198,10 +198,10 @@ final class DocumentViewerViewModel {
             var meta = format.fileSummary(mimeType: document.mimeType, bytes: document.fileSize)
             var banner: String?, tone = Tone.accent
             if let expiry = document.expirationDate {
-                meta += " · expires " + format.longDate(expiry)
+                meta += " · " + String(localized: "expires \(format.longDate(expiry))")
                 switch DocumentExpiryEvaluator.status(for: document, now: clock.now, calendar: clock.calendar) {
-                case .expired: banner = "This document has expired. Upload the renewed one to keep reminders right."; tone = .danger
-                case .expiringSoon(let days): banner = "Expires in \(days) day\(days == 1 ? "" : "s")."; tone = .warning
+                case .expired: banner = String(localized: "This document has expired. Upload the renewed one to keep reminders right."); tone = .danger
+                case .expiringSoon(let days): banner = String(localized: "Expires in \(days) days."); tone = .warning
                 default: break
                 }
             }

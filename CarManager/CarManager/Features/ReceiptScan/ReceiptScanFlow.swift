@@ -15,8 +15,8 @@ struct ReceiptScanFlowView: View {
             if let viewModel {
                 ReceiptScanContentView(viewModel: viewModel) { close() }
             } else if model?.selectedVehicleID == nil {
-                ScanMessageView(symbol: "car", title: "Add a vehicle first",
-                                message: "A receipt is saved to a vehicle.", primaryTitle: "Close", primary: close)
+                ScanMessageView(symbol: "car", title: String(localized: "Add a vehicle first"),
+                                message: String(localized: "A receipt is saved to a vehicle."), primaryTitle: String(localized: "Close"), primary: close)
             }
         }
         .environment(\.colorScheme, .dark)
@@ -56,27 +56,27 @@ private struct ReceiptScanContentView: View {
     var body: some View {
         switch viewModel.scanState {
         case .capturing:
-            CaptureScreen(title: "Scan receipt", symbol: "dollarsign.square",
-                          hint: "Fit the whole receipt in the frame. Good light helps.",
+            CaptureScreen(title: String(localized: "Scan receipt"), symbol: "dollarsign.square",
+                          hint: String(localized: "Fit the whole receipt in the frame. Good light helps."),
                           onClose: close, onImage: viewModel.analyze)
 
         case .recognizing, .analyzing:
-            ScanProcessingView(imageData: viewModel.imageData, title: "Reading the receipt…",
-                               subtitle: "Amounts in another currency are converted at the official rate.")
+            ScanProcessingView(imageData: viewModel.imageData, title: String(localized: "Reading the receipt…"),
+                               subtitle: String(localized: "Amounts in another currency are converted at the official rate."))
                 .accessibilityIdentifier("receiptProcessing")
 
         case .awaitingReview, .editing, .confirming:
             ReceiptReviewForm(viewModel: viewModel, close: close)
 
         case .saved:
-            ScanMessageView(symbol: "checkmark", title: "Saved",
-                            message: "The record is in your vehicle's history.", primaryTitle: "Done", primary: close)
+            ScanMessageView(symbol: "checkmark", title: String(localized: "Saved"),
+                            message: String(localized: "The record is in your vehicle's history."), primaryTitle: String(localized: "Done"), primary: close)
                 .accessibilityIdentifier("receiptDone")
 
         case .failed(let message, _):
-            ScanMessageView(symbol: "exclamationmark.triangle", title: "Couldn't read it", message: message,
-                            primaryTitle: "Try again", primary: viewModel.reset,
-                            secondaryTitle: "Enter manually") {
+            ScanMessageView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't read it"), message: message,
+                            primaryTitle: String(localized: "Try again"), primary: viewModel.reset,
+                            secondaryTitle: String(localized: "Enter manually")) {
                 close()
                 if let id = model?.selectedVehicleID { model?.router.present(.expenseEditor(.create(id))) }
             }
@@ -95,11 +95,11 @@ private struct ReceiptReviewForm: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                EditorTopBar(title: "Review receipt", leading: "Discard", trailingEnabled: viewModel.canSave,
+                EditorTopBar(title: String(localized: "Review receipt"), leading: String(localized: "Discard"), trailingEnabled: viewModel.canSave,
                              onLeading: close, onTrailing: save)
                 VStack(spacing: 16) {
                     InfoBanner(symbol: "exclamationmark.shield",
-                               text: "Check before saving. These values were read from the photo and may be wrong.",
+                               text: String(localized: "Check before saving. These values were read from the photo and may be wrong."),
                                tone: .warning)
                     if let note = viewModel.conversionNote {
                         InfoBanner(symbol: note.tone == .warning ? "exclamationmark.triangle" : "arrow.left.arrow.right",
@@ -121,33 +121,33 @@ private struct ReceiptReviewForm: View {
                             .accessibilityLabel("Receipt photo")
                     }
                     VStack(spacing: 8) {
-                        Eyebrow(text: "Extracted")
+                        Eyebrow(text: String(localized: "Extracted"))
                         FormSurface {
-                            FormMenuRow(label: "Save as", options: [(.expense, "Expense"), (.fuel, "Fuel"), (.service, "Service")],
+                            FormMenuRow(label: String(localized: "Save as"), options: [(.expense, String(localized: "Expense")), (.fuel, String(localized: "Fuel")), (.service, String(localized: "Service"))],
                                         selection: $viewModel.kind, isFirst: true)
-                            FormTextRow(label: "Merchant", text: $viewModel.vendor, placeholder: "Optional")
-                            FormDateRow(label: "Date", date: $viewModel.date, range: Date.distantPast...Date.now)
-                            FormTextRow(label: "Total", text: $viewModel.totalText, placeholder: "0",
+                            FormTextRow(label: String(localized: "Merchant"), text: $viewModel.vendor, placeholder: String(localized: "Optional"))
+                            FormDateRow(label: String(localized: "Date"), date: $viewModel.date, range: Date.distantPast...Date.now)
+                            FormTextRow(label: String(localized: "Total"), text: $viewModel.totalText, placeholder: "0",
                                         unit: viewModel.format.currencySymbol(viewModel.currency), keyboard: .decimalPad)
                                 .accessibilityIdentifier("receiptTotalField")
                             switch viewModel.kind {
                             case .expense:
-                                FormMenuRow(label: "Category",
+                                FormMenuRow(label: String(localized: "Category"),
                                             options: ExpenseCategory.allCases.filter { $0 != .fuel }.map { ($0, $0.displayName) },
                                             selection: $viewModel.category)
                             case .fuel:
-                                FormTextRow(label: "Litres", text: $viewModel.litresText, placeholder: "Required", unit: "L", keyboard: .decimalPad)
-                                FormTextRow(label: "Odometer", text: $viewModel.odometerText, placeholder: "Required",
+                                FormTextRow(label: String(localized: "Litres"), text: $viewModel.litresText, placeholder: String(localized: "Required"), unit: String(localized: "L", comment: "Litres, unit symbol"), keyboard: .decimalPad)
+                                FormTextRow(label: String(localized: "Odometer"), text: $viewModel.odometerText, placeholder: String(localized: "Required"),
                                             unit: viewModel.format.distanceUnit, keyboard: .numberPad)
                             case .service:
-                                FormTextRow(label: "Odometer", text: $viewModel.odometerText, placeholder: "Optional",
+                                FormTextRow(label: String(localized: "Odometer"), text: $viewModel.odometerText, placeholder: String(localized: "Optional"),
                                             unit: viewModel.format.distanceUnit, keyboard: .numberPad)
                             }
                         }
                     }
                     if viewModel.kind == .service, !viewModel.serviceLines.isEmpty {
                         VStack(spacing: 8) {
-                            Eyebrow(text: "On the invoice")
+                            Eyebrow(text: String(localized: "On the invoice"))
                             VStack(spacing: 0) {
                                 ForEach(Array(viewModel.serviceLines.enumerated()), id: \.offset) { index, line in
                                     FormValueRow(label: line.name, value: line.price ?? "", isFirst: index == 0)
@@ -164,7 +164,7 @@ private struct ReceiptReviewForm: View {
                     if let error = viewModel.errorMessage {
                         Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    SaveButton(title: "Save as \(viewModel.kind.rawValue)", isBusy: viewModel.isSaving,
+                    SaveButton(title: viewModel.saveTitle, isBusy: viewModel.isSaving,
                                isEnabled: viewModel.canSave, action: save)
                         .accessibilityIdentifier("receiptConfirm")
                     Button(action: close) {
@@ -253,8 +253,8 @@ struct ReceiptReviewView: View {
     @Environment(\.appModel) private var model
 
     var body: some View {
-        ScanMessageView(symbol: "doc.text.magnifyingglass", title: "Nothing to review",
-                        message: "This scan was already saved or discarded.", primaryTitle: "Close") {
+        ScanMessageView(symbol: "doc.text.magnifyingglass", title: String(localized: "Nothing to review"),
+                        message: String(localized: "This scan was already saved or discarded."), primaryTitle: String(localized: "Close")) {
             model?.router.dismissModal()
         }
         .background(DS.Colors.background.ignoresSafeArea())

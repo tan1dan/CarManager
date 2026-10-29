@@ -81,7 +81,7 @@ final class ExpensesViewModel {
             let named = costs.categories.count > 3 ? Array(costs.categories.prefix(2)) : costs.categories
             let rest = costs.categories.dropFirst(named.count).reduce(Decimal(0)) { $0 + $1.amount }
             var parts = named.map { ($0.category.displayName, $0.amount) }
-            if rest > 0 { parts.append(("Other", rest)) }
+            if rest > 0 { parts.append((String(localized: "Other"), rest)) }
             tiles = parts.enumerated().map { index, part in
                 let fraction = part.1.doubleValue / total
                 return .init(name: part.0, share: "\(Int((fraction * 100).rounded()))%",
@@ -104,9 +104,9 @@ final class ExpensesViewModel {
         return ExpensesPresentation(
             year: costs.year,
             years: costs.availableYears,
-            totalCaption: costs.currentMonthIndex != nil ? "Total this year" : "Total in \(String(costs.year))",
+            totalCaption: costs.currentMonthIndex != nil ? String(localized: "Total this year") : String(localized: "Total in \(String(costs.year))"),
             total: format.money(costs.total, costs.currency, fractionDigits: 0),
-            change: change.map { format.percentChange($0) + " vs \(costs.year - 1)" },
+            change: change.map { String(localized: "\(format.percentChange($0)) vs \(String(costs.year - 1))") },
             changeTone: (change ?? 0) > 0.005 ? .warning : (change ?? 0) < -0.005 ? .success : .neutral,
             bars: costs.months.map { $0?.value.doubleValue },
             barLabels: (1...12).compactMap { month in

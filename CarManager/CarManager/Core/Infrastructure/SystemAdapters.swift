@@ -187,6 +187,26 @@ public actor DiskFileStorage: FileStorage {
     public func delete(_ ref: FileRef) async throws {
         try? FileManager.default.removeItem(at: root.appendingPathComponent(ref.relativePath))
     }
+
+    /// Puts bytes back at the path a ref already names — a copy restored from iCloud.
+    func write(_ data: Data, at ref: FileRef) throws {
+        let url = root.appendingPathComponent(ref.relativePath)
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        do {
+            try data.write(to: url)
+        } catch {
+            throw DomainError.document(.fileWriteFailed)
+        }
+    }
+
+    /// Every file on disk of one kind, as the refs that were handed out for them.
+    func refs(of kind: FileKind) -> [FileRef] {
+        let directory = root.appendingPathComponent(kind.rawValue, isDirectory: true)
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+        return names.compactMap { name in
+            UUID(uuidString: name).map { FileRef(id: $0, relativePath: "\(kind.rawValue)/\(name)") }
+        }
+    }
 }
 
 public actor InMemoryFileStorage: FileStorage {

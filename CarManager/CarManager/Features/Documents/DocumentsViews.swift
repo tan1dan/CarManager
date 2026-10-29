@@ -12,8 +12,8 @@ struct DocumentsView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: DS.Layout.sectionSpacing) {
-                PushedHeader(title: "Documents", onBack: { model?.router.pop() }) {
-                    CircleIconButton(symbol: "plus", filled: true, accessibilityLabel: "Upload document") { add() }
+                PushedHeader(title: String(localized: "Documents"), onBack: { model?.router.pop() }) {
+                    CircleIconButton(symbol: "plus", filled: true, accessibilityLabel: String(localized: "Upload document")) { add() }
                         .accessibilityIdentifier("documentAdd")
                 }
                 if let viewModel { DocumentsContentView(viewModel: viewModel, vehicleID: vehicleID, add: add) }
@@ -72,11 +72,11 @@ private struct DocumentsContentView: View {
                     }
                 }
             case .empty:
-                EmptyStateView(symbol: "doc.text", title: "No documents",
-                               message: "Keep insurance, registration and receipts here. Expiry dates become reminders.",
-                               actionTitle: "Upload document", action: add)
+                EmptyStateView(symbol: "doc.text", title: String(localized: "No documents"),
+                               message: String(localized: "Keep insurance, registration and receipts here. Expiry dates become reminders."),
+                               actionTitle: String(localized: "Upload document"), action: add)
             case .failed(let error):
-                EmptyStateView(symbol: "exclamationmark.triangle", title: "Couldn't load documents",
+                EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Couldn't load documents"),
                                message: UserMessage.text(for: DomainError.unexpected(description: error.messageKey)))
             default:
                 ProgressView().tint(DS.Colors.textSecondary).padding(.top, 80)
@@ -177,12 +177,12 @@ private struct DocumentViewerContent: View {
                         .padding(.horizontal, DS.Layout.gutter)
                 }
             case .failed:
-                PushedHeader(title: "Document", onBack: onClose)
-                EmptyStateView(symbol: "icloud.slash", title: "File isn't available",
-                               message: "It may still be downloading, or it was removed from this device.")
+                PushedHeader(title: String(localized: "Document"), onBack: onClose)
+                EmptyStateView(symbol: "icloud.slash", title: String(localized: "File isn't available"),
+                               message: String(localized: "It may still be downloading, or it was removed from this device."))
                 Spacer()
             default:
-                PushedHeader(title: "Document", onBack: onClose)
+                PushedHeader(title: String(localized: "Document"), onBack: onClose)
                 ProgressView().tint(DS.Colors.textSecondary).frame(maxHeight: .infinity)
             }
         }
@@ -267,32 +267,32 @@ private struct AddDocumentContentView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                EditorTopBar(title: "Upload Document", trailing: "Upload", trailingEnabled: viewModel.canSave,
+                EditorTopBar(title: String(localized: "Upload Document"), trailing: String(localized: "Upload"), trailingEnabled: viewModel.canSave,
                              onLeading: viewModel.cancel, onTrailing: save)
                 VStack(spacing: 16) {
                     dropZone
                     FormSurface {
-                        FormTextRow(label: "Title", text: $viewModel.name, placeholder: viewModel.type.displayName, isFirst: true)
+                        FormTextRow(label: String(localized: "Title"), text: $viewModel.name, placeholder: viewModel.type.displayName, isFirst: true)
                             .accessibilityIdentifier("documentNameField")
-                        FormMenuRow(label: "Type", options: DocumentType.allCases.map { ($0, $0.displayName) }, selection: $viewModel.type)
-                        FormToggleRow(label: "Has expiry date", isOn: $viewModel.hasExpiry)
+                        FormMenuRow(label: String(localized: "Type"), options: DocumentType.allCases.map { ($0, $0.displayName) }, selection: $viewModel.type)
+                        FormToggleRow(label: String(localized: "Has expiry date"), isOn: $viewModel.hasExpiry)
                         if viewModel.hasExpiry {
-                            FormDateRow(label: "Expiry date", date: $viewModel.expirationDate)
+                            FormDateRow(label: String(localized: "Expiry date"), date: $viewModel.expirationDate)
                         }
                         if !viewModel.vehicleName.isEmpty {
-                            FormValueRow(label: "Vehicle", value: viewModel.vehicleName)
+                            FormValueRow(label: String(localized: "Vehicle"), value: viewModel.vehicleName)
                         }
                     }
                     Text(viewModel.hasExpiry
-                         ? "Files are kept on this iPhone. The expiry date becomes a reminder 7 days ahead."
-                         : "Files are kept on this iPhone.")
+                         ? "Files are kept in your iCloud with your records. The expiry date becomes a reminder 7 days ahead."
+                         : "Files are kept in your iCloud with your records.")
                         .font(DS.Text.caption)
                         .foregroundStyle(DS.Colors.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     if let error = viewModel.errorMessage {
                         Text(error).font(DS.Text.subheadline).foregroundStyle(DS.Colors.danger).frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    SaveButton(title: "Upload document", symbol: "doc.badge.arrow.up", isBusy: viewModel.isSaving,
+                    SaveButton(title: String(localized: "Upload document"), symbol: "doc.badge.arrow.up", isBusy: viewModel.isSaving,
                                isEnabled: viewModel.canSave, action: save)
                         .accessibilityIdentifier("documentSave")
                 }
@@ -333,7 +333,7 @@ private struct AddDocumentContentView: View {
                     .padding(.bottom, 8)
                 Text(viewModel.fileSummary == nil ? "Choose a PDF or photo" : "File attached")
                     .font(DS.Text.rowTitle).foregroundStyle(.white)
-                Text(viewModel.fileSummary ?? "Insurance, registration, receipts")
+                Text(viewModel.fileSummary ?? String(localized: "Insurance, registration, receipts"))
                     .font(DS.Text.caption).foregroundStyle(DS.Colors.textSecondary)
             }
             .frame(maxWidth: .infinity)

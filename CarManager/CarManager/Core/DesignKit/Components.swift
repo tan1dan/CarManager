@@ -99,8 +99,8 @@ struct LargeTitleHeader<Trailing: View>: View {
 /// Cancel · Title · Save — the top row of every editor sheet (Figma "Add Fuel").
 struct EditorTopBar: View {
     let title: String
-    var leading = "Cancel"
-    var trailing = "Save"
+    var leading = String(localized: "Cancel")
+    var trailing = String(localized: "Save")
     var trailingEnabled = true
     let onLeading: () -> Void
     let onTrailing: () -> Void
@@ -281,7 +281,7 @@ struct FormSurface<Content: View>: View {
 struct FormChoiceRow: View {
     let label: String
     let value: String
-    var placeholder = "Select"
+    var placeholder = String(localized: "Select")
     var isFirst = false
     let action: () -> Void
 
