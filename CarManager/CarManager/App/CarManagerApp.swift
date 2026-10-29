@@ -31,9 +31,12 @@ struct CarManagerApp: App {
                     }
                     #endif
                 }
-                // Coming back to the app may follow edits made on another device.
+                // Coming back to the app may follow edits made on another device, or a
+                // subscription that renewed, lapsed or was refunded while it was closed.
                 .onChange(of: scenePhase) { _, phase in
-                    if phase == .active { Task { await model.vehicles.refresh() } }
+                    guard phase == .active else { return }
+                    Task { await model.vehicles.refresh() }
+                    Task { await model.entitlements.refresh() }
                 }
         }
     }

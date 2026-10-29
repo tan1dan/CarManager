@@ -33,6 +33,8 @@ struct ProfileView: View {
         .onChange(of: model?.router.activeModal) { _, modal in
             if modal == nil { Task { await load() } }
         }
+        // A renewal, expiry or refund while Profile is open swaps the upsell banner and badge.
+        .onChange(of: model?.entitlements.isPremium) { _, _ in viewModel?.refreshPresentation() }
     }
 
     // MARK: - Sections

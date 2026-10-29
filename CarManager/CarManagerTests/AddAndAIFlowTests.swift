@@ -321,7 +321,7 @@ struct SettingsNavigationTests {
     @Test("Purchasing updates the entitlement store and unlocks gated features")
     func purchaseUnlocksFeatures() async throws {
         let clock = FixedClock()
-        let subscriptions = StubSubscriptionProvider(clock: clock)
+        let subscriptions = PreviewSubscriptionProvider(clock: clock)
         let store = EntitlementStore(subscriptions: subscriptions, clock: clock)
 
         await store.bootstrap()
@@ -339,7 +339,7 @@ struct SettingsNavigationTests {
     func restoreNothingToRestore() async throws {
         let clock = FixedClock()
         let store = EntitlementStore(
-            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+            subscriptions: PreviewSubscriptionProvider(clock: clock), clock: clock
         )
 
         let outcome = try await store.restore()

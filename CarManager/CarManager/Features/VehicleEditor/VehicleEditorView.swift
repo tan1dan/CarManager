@@ -112,7 +112,7 @@ private struct VehicleEditorContentView: View {
                 .foregroundStyle(DS.Colors.onCardSecondary)
                 .accessibilityIdentifier("vehicleCancel")
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidingSharedBackground()
         ToolbarItem(placement: .confirmationAction) {
             Button("Save") { save() }
                 .font(DS.Text.rowTitle)
@@ -120,7 +120,7 @@ private struct VehicleEditorContentView: View {
                 .disabled(!viewModel.canSave)
                 .accessibilityIdentifier("vehicleSaveTop")
         }
-        .sharedBackgroundVisibility(.hidden)
+        .hidingSharedBackground()
     }
 
     private var scanPlateButton: some View {

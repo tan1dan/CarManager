@@ -87,13 +87,18 @@ struct AIHubFormatter: Sendable {
         [
             .init(kind: .dashboard, symbolName: "camera", title: String(localized: "Scan Dashboard"),
                   subtitle: String(localized: "Warning lights"), isLocked: isLocked(.dashboardScan)),
-            .init(kind: .receipt, symbolName: "receipt", title: String(localized: "Scan Receipt"),
+            .init(kind: .receipt, symbolName: Self.receiptSymbol, title: String(localized: "Scan Receipt"),
                   subtitle: String(localized: "Auto-fill expense"), isLocked: isLocked(.receiptScan)),
             .init(kind: .damage, symbolName: "exclamationmark.shield", title: String(localized: "Analyze Damage"),
                   subtitle: String(localized: "Photo diagnosis"), isLocked: isLocked(.damageAnalysis)),
             .init(kind: .chat, symbolName: "message", title: String(localized: "Ask AI"),
                   subtitle: String(localized: "Anything car"), isLocked: isLocked(.aiChat))
         ]
+    }
+
+    /// The "receipt" symbol arrived in iOS 18.2; 18.0 and 18.1 get the closest older one.
+    static var receiptSymbol: String {
+        if #available(iOS 18.2, *) { "receipt" } else { "doc.text.viewfinder" }
     }
 
     /// "Today", "Yesterday", "Nov 3", or "Nov 3, 2024" once the year differs.

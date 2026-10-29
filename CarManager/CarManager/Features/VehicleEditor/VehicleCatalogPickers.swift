@@ -19,6 +19,26 @@ struct BrandPickerView: View {
     @State private var query = ""
 
     var body: some View {
+        ScrollViewReader { proxy in
+            list
+                .listSectionIndexVisibleIfAvailable()
+                .overlay(alignment: .trailing) {
+                    // iOS 26 shows the system index; earlier systems get the same A–Z jump bar.
+                    if #unavailable(iOS 26.0), query.isEmpty {
+                        SectionIndexBar(letters: sections.map(\.letter)) { proxy.scrollTo($0, anchor: .top) }
+                            .padding(.trailing, 2)
+                    }
+                }
+        }
+        .catalogPickerStyle(title: String(localized: "Brand"))
+        .searchable(
+            text: $query,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: "Search brands"
+        )
+    }
+
+    private var list: some View {
         List {
             if query.isEmpty {
                 if !popular.isEmpty {
@@ -30,7 +50,8 @@ struct BrandPickerView: View {
                     Section(section.letter) {
                         ForEach(section.brands) { row($0.name) }
                     }
-                    .sectionIndexLabel(section.letter)
+                    .id(section.letter)
+                    .sectionIndexLabelIfAvailable(section.letter)
                 }
             } else {
                 CustomEntryRow(query: query, existing: brands.flatMap(\.searchNames)) { choose($0) }
@@ -41,13 +62,6 @@ struct BrandPickerView: View {
                 CatalogAttribution(source: source)
             }
         }
-        .listSectionIndexVisibility(.visible)
-        .catalogPickerStyle(title: String(localized: "Brand"))
-        .searchable(
-            text: $query,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search brands"
-        )
     }
 
     private var brands: [VehicleCatalog.Brand] { catalog?.brands ?? [] }

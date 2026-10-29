@@ -2,12 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- AI assistant backend (Supabase Edge Function `car-assistant`). The publishable key is
-	     public by design and is not the OpenAI key, which lives only in the function's secrets. -->
-	<key>SupabaseURL</key>
-	<string>https://dosyqxkfqpkxdclkuhfu.supabase.co</string>
-	<key>SupabasePublishableKey</key>
-	<string>sb_publishable_zpoDLrtvo_O0gRwp6uUPaw_HhZpC5jH</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -19,5 +13,11 @@
 			</array>
 		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>SupabasePublishableKey</key>
+	<string>sb_publishable_zpoDLrtvo_O0gRwp6uUPaw_HhZpC5jH</string>
+	<key>SupabaseURL</key>
+	<string>https://dosyqxkfqpkxdclkuhfu.supabase.co</string>
 </dict>
 </plist>

@@ -103,10 +103,9 @@ struct ProfileFormatter: Sendable {
         }
     }
 
+    /// An upsell, so only for free users. Subscribers see their plan in the PREMIUM badge.
     private func premiumBanner(isPremium: Bool) -> ProfilePresentationModel.PremiumBanner? {
-        isPremium
-            ? .init(eyebrow: String(localized: "PREMIUM"), body: String(localized: "Unlimited vehicles, AI scans, cloud backup."))
-            : .init(eyebrow: String(localized: "GO PREMIUM"), body: String(localized: "Unlimited vehicles, AI scans, cloud backup."))
+        isPremium ? nil : .init(eyebrow: String(localized: "GO PREMIUM"), body: String(localized: "Unlimited vehicles, unlimited AI chat and AI scans."))
     }
 
     private func rows() -> [ProfilePresentationModel.Row] {

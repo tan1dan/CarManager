@@ -543,7 +543,7 @@ struct ProfileTests {
         #expect(model.stats.first?.label == input.label)
     }
 
-    @Test("The premium banner invites an upgrade for free users and confirms it for subscribers")
+    @Test("The upgrade banner is shown to free users and disappears for subscribers")
     func premiumBannerCopy() {
         let free = formatter.makeModel(
             authState: .anonymous, entitlement: .free, isPremium: false, statistics: .empty
@@ -554,7 +554,8 @@ struct ProfileTests {
         )
 
         #expect(free.premium?.eyebrow == "GO PREMIUM")
-        #expect(premium.premium?.eyebrow == "PREMIUM")
+        #expect(premium.premium == nil)
+        #expect(premium.identity.badgeTitle == "PREMIUM")
     }
 
     @Test("Statistics aggregate the per-vehicle counts")
@@ -720,16 +721,17 @@ struct PaywallTests {
     private let formatter = PaywallFormatter()
 
     private func products(eligible: Bool = true) -> [SubscriptionProduct] {
-        [
+        let trial = IntroOffer(kind: .freeTrial, duration: "1 week", price: nil)
+        return [
             SubscriptionProduct(
-                id: .monthly, displayName: "Premium Monthly", displayPrice: "€4.99",
-                isEligibleForIntroOffer: eligible,
-                introOfferDescription: eligible ? "7-day free trial" : nil
+                id: .monthly, displayName: "Premium Monthly", displayPrice: "$6.99",
+                price: Decimal(string: "6.99")!, period: .month,
+                isEligibleForIntroOffer: eligible, introOffer: trial
             ),
             SubscriptionProduct(
-                id: .yearly, displayName: "Premium Yearly", displayPrice: "€39.00",
-                isEligibleForIntroOffer: eligible,
-                introOfferDescription: eligible ? "7-day free trial" : nil
+                id: .yearly, displayName: "Premium Yearly", displayPrice: "$59.99",
+                price: Decimal(string: "59.99")!, period: .year, pricePerMonth: "$4.99",
+                isEligibleForIntroOffer: eligible, introOffer: trial
             )
         ]
     }
@@ -747,32 +749,53 @@ struct PaywallTests {
     func pricesComeFromStoreKit() {
         let model = formatter.makeModel(products: products(), selected: .yearly)
 
-        #expect(model.plans.first { $0.id == .monthly }?.price == "€4.99")
-        #expect(model.plans.first { $0.id == .yearly }?.price == "€39.00")
+        #expect(model.plans.first { $0.id == .monthly }?.price == "$6.99")
+        #expect(model.plans.first { $0.id == .yearly }?.price == "$59.99")
+        #expect(model.plans.first { $0.id == .yearly }?.caption == "per year · $4.99/month")
+    }
+
+    @Test("The yearly flag shows the real saving, computed from both prices")
+    func savingsFromRealPrices() {
+        let model = formatter.makeModel(products: products(), selected: .yearly)
+        // 59.99 vs 12 × 6.99 = 83.88 → 28.5 % → "SAVE 28%" (rounded down, never overstated).
+        #expect(model.plans.first { $0.id == .yearly }?.flag == "SAVE 28%")
+
+        let onlyYearly = formatter.makeModel(products: products().filter { $0.id == .yearly }, selected: .yearly)
+        #expect(onlyYearly.plans.first?.flag == "BEST")
     }
 
     @Test("A trial is only promised when the account is eligible")
     func trialOnlyWhenEligible() {
         let eligible = formatter.makeModel(products: products(eligible: true), selected: .yearly)
-        #expect(eligible.callToAction == "Start 7-day free trial")
+        #expect(eligible.callToAction == "Try 1 week free")
+        #expect(eligible.disclosure.hasPrefix("1 week free, then $59.99 per year."))
 
         let notEligible = formatter.makeModel(products: products(eligible: false), selected: .yearly)
         #expect(notEligible.callToAction == "Subscribe")
+        #expect(notEligible.disclosure.hasPrefix("$59.99 per year."))
+    }
+
+    @Test("The disclosure states price, period and auto-renewal for the selected plan")
+    func disclosureForSelectedPlan() {
+        let model = formatter.makeModel(products: products(eligible: false), selected: .monthly)
+        #expect(model.disclosure.hasPrefix("$6.99 per month."))
+        #expect(model.disclosure.contains("renews automatically"))
     }
 
     @Test("The benefit list matches what the gating matrix actually unlocks")
     func benefitsMatchGating() {
-        // iCloud sync is free in this app, so the paywall must not claim it.
+        // iCloud sync is free in this app, and there is no PDF export: neither may be claimed.
         #expect(!PaywallFormatter.benefits.contains { $0.localizedCaseInsensitiveContains("icloud") })
+        #expect(!PaywallFormatter.benefits.contains { $0.localizedCaseInsensitiveContains("pdf") })
         #expect(PaywallFormatter.benefits.contains("Unlimited vehicles"))
-        #expect(PaywallFormatter.benefits.contains("PDF export of history"))
+        #expect(PaywallFormatter.benefits.contains("Unlimited AI chat"))
     }
 
     @Test("Selecting a plan changes the call to action target")
     func selectionDrivesModel() async {
         let clock = FixedClock()
         let store = EntitlementStore(
-            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+            subscriptions: PreviewSubscriptionProvider(clock: clock), clock: clock
         )
         let viewModel = PaywallViewModel(
             context: .settingsUpgrade, entitlements: store,
@@ -789,7 +812,7 @@ struct PaywallTests {
     func restoreNothingIsNeutral() async {
         let clock = FixedClock()
         let store = EntitlementStore(
-            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+            subscriptions: PreviewSubscriptionProvider(clock: clock), clock: clock
         )
         let viewModel = PaywallViewModel(
             context: .settingsUpgrade, entitlements: store,
@@ -804,7 +827,7 @@ struct PaywallTests {
     func purchaseReplaysDestination() async {
         let clock = FixedClock()
         let store = EntitlementStore(
-            subscriptions: StubSubscriptionProvider(clock: clock), clock: clock
+            subscriptions: PreviewSubscriptionProvider(clock: clock), clock: clock
         )
         // The router must read LIVE entitlement state: replaying a destination re-runs the
         // guard, so a stale snapshot would block the very screen the purchase unlocked.

@@ -12,7 +12,7 @@ struct UserJourneyTests {
     private func makeApp(premium: Bool = true) async -> (AppModel, AppDependencies) {
         let dependencies = AppDependencies.testing(preferences: InMemoryPreferences(onboardingCompletedVersion: 1), clock: clock) {
             if premium {
-                $0.subscriptions = StubSubscriptionProvider(entitlement: .premium(now: clock.now), clock: clock)
+                $0.subscriptions = PreviewSubscriptionProvider(entitlement: .premium(now: clock.now), clock: clock)
             }
         }
         let app = AppModel(dependencies: dependencies)

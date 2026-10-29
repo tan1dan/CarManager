@@ -71,10 +71,29 @@ public struct AIUsageSnapshot: Hashable, Sendable {
     public var remaining: Int? { limit.map { max(0, $0 - used) } }
 }
 
+/// App Store Connect product identifiers. One subscription group, two durations.
 public enum ProductID: String, CaseIterable, Codable, Sendable, Identifiable {
-    case monthly = "app.carassistant.premium.monthly"
-    case yearly = "app.carassistant.premium.yearly"
+    case monthly = "com.IvanZnak.aicarmanager.premium.monthly"
+    case yearly = "com.IvanZnak.aicarmanager.premium.yearly"
     public var id: String { rawValue }
+}
+
+public enum SubscriptionPeriodUnit: String, Codable, Sendable {
+    case week, month, year
+}
+
+/// An introductory offer exactly as StoreKit describes it for this account.
+public struct IntroOffer: Hashable, Sendable {
+    public enum Kind: Hashable, Sendable { case freeTrial, discounted }
+    public let kind: Kind
+    /// "1 week", "3 months" — already in the user's language.
+    public let duration: String
+    /// StoreKit's localised price for a discounted offer; nil for a free trial.
+    public let price: String?
+
+    public init(kind: Kind, duration: String, price: String?) {
+        self.kind = kind; self.duration = duration; self.price = price
+    }
 }
 
 public struct SubscriptionProduct: Identifiable, Hashable, Sendable {
@@ -82,16 +101,24 @@ public struct SubscriptionProduct: Identifiable, Hashable, Sendable {
     public let displayName: String
     /// Always StoreKit's localised price string — never formatted by us.
     public let displayPrice: String
+    /// The raw amount, for comparing plans (savings). Never shown directly.
+    public let price: Decimal
+    public let period: SubscriptionPeriodUnit
+    /// What a longer plan costs per month, formatted by StoreKit ("$4.99").
+    public let pricePerMonth: String?
     public let isEligibleForIntroOffer: Bool
-    public let introOfferDescription: String?
+    public let introOffer: IntroOffer?
 
     public init(
-        id: ProductID, displayName: String, displayPrice: String,
-        isEligibleForIntroOffer: Bool = false, introOfferDescription: String? = nil
+        id: ProductID, displayName: String, displayPrice: String, price: Decimal = 0,
+        period: SubscriptionPeriodUnit? = nil, pricePerMonth: String? = nil,
+        isEligibleForIntroOffer: Bool = false, introOffer: IntroOffer? = nil
     ) {
         self.id = id; self.displayName = displayName; self.displayPrice = displayPrice
+        self.price = price; self.period = period ?? (id == .yearly ? .year : .month)
+        self.pricePerMonth = pricePerMonth
         self.isEligibleForIntroOffer = isEligibleForIntroOffer
-        self.introOfferDescription = introOfferDescription
+        self.introOffer = introOffer
     }
 }
 

@@ -1,31 +1,38 @@
 import Foundation
 
-/// PLACEHOLDER for `StoreKitSubscriptionService`.
+#if DEBUG
+/// A StoreKit stand-in for tests, previews and DEBUG launch arguments. It does not exist in
+/// Release builds: the shipped app always talks to `StoreKitSubscriptionProvider`.
 ///
-/// The real implementation is an actor that owns an app-lifetime `Transaction.updates`
-/// listener and verifies every transaction before granting entitlement. It will be the ONLY
-/// file in the app importing StoreKit — no View and no ViewModel ever will.
-public actor StubSubscriptionProvider: SubscriptionProviding {
+/// Its products mirror App Store Connect's US prices, so a paywall screenshot taken with
+/// `-debugPaywallPrices` shows exactly what a US customer sees.
+public actor PreviewSubscriptionProvider: SubscriptionProviding {
     private var entitlement: Entitlement
+    private let catalog: [SubscriptionProduct]
     private let clock: any ClockProviding
 
-    public init(entitlement: Entitlement = .free, clock: any ClockProviding = SystemClock()) {
+    public init(
+        entitlement: Entitlement = .free,
+        products: [SubscriptionProduct] = PreviewSubscriptionProvider.usProducts,
+        clock: any ClockProviding = SystemClock()
+    ) {
         self.entitlement = entitlement
+        self.catalog = products
         self.clock = clock
     }
 
-    public func products() async throws -> [SubscriptionProduct] {
-        [
-            SubscriptionProduct(
-                id: .monthly, displayName: String(localized: "Premium Monthly"), displayPrice: "€4.99",
-                isEligibleForIntroOffer: true, introOfferDescription: String(localized: "7-day free trial")
-            ),
-            SubscriptionProduct(
-                id: .yearly, displayName: String(localized: "Premium Yearly"), displayPrice: "€39.00",
-                isEligibleForIntroOffer: true, introOfferDescription: String(localized: "7-day free trial")
-            )
-        ]
-    }
+    public static let usProducts = [
+        SubscriptionProduct(
+            id: .monthly, displayName: "Premium Monthly", displayPrice: "$6.99",
+            price: Decimal(string: "6.99")!, period: .month
+        ),
+        SubscriptionProduct(
+            id: .yearly, displayName: "Premium Yearly", displayPrice: "$59.99",
+            price: Decimal(string: "59.99")!, period: .year, pricePerMonth: "$4.99"
+        )
+    ]
+
+    public func products() async throws -> [SubscriptionProduct] { catalog }
 
     public func currentEntitlement() async -> Entitlement { entitlement }
 
@@ -46,3 +53,4 @@ public actor StubSubscriptionProvider: SubscriptionProviding {
 
     public func openManageSubscriptions() async {}
 }
+#endif

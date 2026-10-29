@@ -64,6 +64,7 @@ public enum SubscriptionError: Error, Sendable, Equatable {
     case unverifiedTransaction
     case productsUnavailable
     case purchaseFailed(String)
+    case restoreFailed
 }
 
 public enum AIError: Error, Sendable, Equatable {

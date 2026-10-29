@@ -20,7 +20,19 @@ final class PaywallViewModel {
         self.router = router
     }
 
+    /// Prices could not be loaded; the view shows a retry instead of empty plans.
+    var isUnavailable: Bool { presentation.plans.isEmpty && entitlements.productsError != nil && !entitlements.isLoadingProducts }
+    var isLoading: Bool { presentation.plans.isEmpty && entitlements.isLoadingProducts }
+    var canPurchase: Bool { !isPurchasing && presentation.plans.contains { $0.id == selectedProduct } }
+
     func load() async {
+        // Someone already subscribed (another device, family sharing) has nothing to buy.
+        if entitlements.isPremium {
+            router.dismissModal()
+            router.replayPendingDestination()
+            return
+        }
+        rebuild()
         await entitlements.loadProducts()
         rebuild()
     }
@@ -31,7 +43,7 @@ final class PaywallViewModel {
     }
 
     func purchaseSelected() async {
-        guard !isPurchasing else { return }
+        guard canPurchase else { return }
         isPurchasing = true
         message = nil
         defer { isPurchasing = false }
@@ -49,7 +61,7 @@ final class PaywallViewModel {
                 break
             }
         } catch {
-            message = ErrorPresenter.present(error).messageKey
+            message = UserMessage.text(for: error)
         }
     }
 
@@ -65,7 +77,7 @@ final class PaywallViewModel {
                 message = String(localized: "Nothing to restore")
             }
         } catch {
-            message = ErrorPresenter.present(error).messageKey
+            message = UserMessage.text(for: error)
         }
     }
 

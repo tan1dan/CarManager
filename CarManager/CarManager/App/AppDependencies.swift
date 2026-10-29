@@ -154,7 +154,13 @@ public extension AppDependencies {
                 credentialState: AlwaysAuthorizedCredentialState(),
                 clock: clock
             ),
-            subscriptions: StubSubscriptionProvider(clock: clock),
+            subscriptions: {
+                #if DEBUG
+                PreviewSubscriptionProvider(clock: clock)
+                #else
+                StoreKitSubscriptionProvider(clock: clock)
+                #endif
+            }(),
             ai: MockAIProvider(chunkDelay: .zero),
             vision: StubVisionAnalysisProvider(),
             textRecognizer: StubTextRecognizer(),
@@ -191,14 +197,19 @@ extension AppDependencies {
     /// Premium screens can be checked without going through the paywall each launch.
     static func makeSubscriptions(clock: any ClockProviding) -> any SubscriptionProviding {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-debugPremium") {
-            return StubSubscriptionProvider(entitlement: Entitlement(
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-debugPremium") {
+            return PreviewSubscriptionProvider(entitlement: Entitlement(
                 tier: .premium, source: .direct, expiresAt: clock.now.addingTimeInterval(86_400 * 30),
                 willAutoRenew: true, lastVerifiedAt: clock.now
             ), clock: clock)
         }
+        // App Store Connect's US prices without StoreKit, for paywall screenshots.
+        if arguments.contains("-debugPaywallPrices") {
+            return PreviewSubscriptionProvider(clock: clock)
+        }
         #endif
-        return StubSubscriptionProvider(clock: clock)
+        return StoreKitSubscriptionProvider(clock: clock)
     }
 
     /// Identity is Sign in with Apple plus the Keychain — no service to configure.

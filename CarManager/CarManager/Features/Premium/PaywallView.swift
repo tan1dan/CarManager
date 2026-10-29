@@ -126,7 +126,30 @@ struct PaywallView: View {
         }
     }
 
+    @ViewBuilder
     private var plans: some View {
+        if viewModel?.isUnavailable == true {
+            // No prices, no purchase: say so and offer a retry instead of empty cards.
+            VStack(spacing: 12) {
+                Text("Subscriptions couldn't be loaded. Check your connection and try again.")
+                    .font(DS.Text.subheadlineRegular)
+                    .foregroundStyle(Color.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                Button("Retry") { Task { await viewModel?.load() } }
+                    .font(DS.Text.rowTitle)
+                    .foregroundStyle(.white)
+                    .accessibilityIdentifier("paywallRetry")
+            }
+            .frame(maxWidth: .infinity, minHeight: Metrics.planHeight)
+        } else if viewModel?.isLoading ?? true, presentation.plans.isEmpty {
+            ProgressView().tint(.white)
+                .frame(maxWidth: .infinity, minHeight: Metrics.planHeight)
+        } else {
+            planCards
+        }
+    }
+
+    private var planCards: some View {
         HStack(spacing: Metrics.planSpacing) {
             ForEach(presentation.plans) { plan in
                 PlanCard(plan: plan, isSelected: plan.id == viewModel?.selectedProduct) {
@@ -158,8 +181,18 @@ struct PaywallView: View {
                 .background(Capsule().fill(Color.white))
             }
             .buttonStyle(.plain)
-            .disabled(viewModel?.isPurchasing == true)
+            .disabled(viewModel?.canPurchase != true)
+            .opacity(viewModel?.canPurchase == true || viewModel?.isPurchasing == true ? 1 : 0.5)
             .accessibilityIdentifier("paywallSubscribe")
+            if !presentation.disclosure.isEmpty {
+                Text(presentation.disclosure)
+                    .font(DS.Text.statUnit)
+                    .tracking(DS.Text.defaultTracking)
+                    .foregroundStyle(Color.white.opacity(0.45))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("paywallDisclosure")
+            }
 
             HStack(spacing: 4) {
                 Text(presentation.footerPrefix)

@@ -328,13 +328,16 @@ struct SubscriptionSettingsView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                Button { model?.router.present(.paywall(.settingsUpgrade)) } label: {
-                    SettingsLine(symbol: "info.circle", title: String(localized: "What Premium includes"), subtitle: String(localized: "Scans, unlimited AI, more vehicles")) {
-                        SettingsRowChevron()
+                // Subscribers already have it; the paywall would only try to sell it again.
+                if model?.entitlements.isPremium != true {
+                    Button { model?.router.present(.paywall(.settingsUpgrade)) } label: {
+                        SettingsLine(symbol: "info.circle", title: String(localized: "What Premium includes"), subtitle: String(localized: "Scans, unlimited AI, more vehicles")) {
+                            SettingsRowChevron()
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("subscriptionUpgrade")
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("subscriptionUpgrade")
             }
             if let message { Footnote(text: message) }
             Footnote(text: String(localized: "Billing is handled by Apple. We never see your card details."))
